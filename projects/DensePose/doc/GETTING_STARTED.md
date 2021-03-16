@@ -9,13 +9,13 @@ python apply_net.py show configs/densepose_rcnn_R_50_FPN_s1x.yaml models/densepo
 ```
 Please see [Apply Net](TOOL_APPLY_NET.md) for more details on the tool.
 
-#### Result
+### Result
 <p float="left">
 	<img src="../pix/input_bbox.jpg" width="400" />
 	<img src="../pix/3677_segm.jpg" width="400" />
 </p>
 
-#### Issues
+### Issues
 * https://detectron2.readthedocs.io/tutorials/install.html
 * https://pypi.org/project/av/
 * https://github.com/facebookresearch/detectron2/issues/707
