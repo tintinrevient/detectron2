@@ -1,7 +1,7 @@
 from detectron2.utils.logger import setup_logger
 setup_logger()
 
-import cv2
+import cv2, os
 import numpy as np
 from detectron2 import model_zoo
 from detectron2.engine import DefaultPredictor
@@ -14,7 +14,11 @@ from densepose.vis.densepose_results import DensePoseResultsFineSegmentationVisu
 from densepose.vis.bounding_box import ScoredBoundingBoxVisualizer
 from densepose.vis.extractor import CompoundExtractor, DensePoseResultExtractor, create_extractor
 
-im = cv2.imread('./pix/3677.jpg')
+fname = 'prudhon-3'
+infile = os.path.join('pix', fname + '.jpg')
+outfile = os.path.join('pix', fname + '_segm.jpg')
+
+im = cv2.imread(infile)
 # cv2.imshow('input', im)
 # cv2.waitKey(0)
 # cv2.destroyAllWindows()
@@ -61,4 +65,4 @@ cv2.imshow('vis', im_vis)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 
-cv2.imwrite('./pix/3677_segm.jpg', im_vis)
+cv2.imwrite(outfile, im_vis)

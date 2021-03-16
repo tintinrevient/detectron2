@@ -9,7 +9,11 @@ from detectron2.config import get_cfg
 from detectron2.utils.visualizer import Visualizer
 from detectron2.data import MetadataCatalog, DatasetCatalog
 
-im = cv2.imread('./pix/input.jpg')
+fname = 'jacoulet-1'
+infile = os.path.join('pix', fname + '.jpg')
+outfile = os.path.join('pix', fname + '_bbox.jpg')
+
+im = cv2.imread(infile)
 # cv2.imshow('input', im)
 # cv2.waitKey(0)
 # cv2.destroyAllWindows()
@@ -37,4 +41,4 @@ cv2.imshow('bbox', out.get_image()[:, :, ::-1])
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 
-cv2.imwrite('./pix/input_bbox.jpg', out.get_image()[:, :, ::-1])
+cv2.imwrite(outfile, out.get_image()[:, :, ::-1])
