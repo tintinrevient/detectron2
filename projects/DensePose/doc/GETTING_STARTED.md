@@ -5,9 +5,23 @@
 1. Pick a model and its config file from [Model Zoo](MODEL_ZOO.md), for example [densepose_rcnn_R_50_FPN_s1x.yaml](../configs/densepose_rcnn_R_50_FPN_s1x.yaml)
 2. Run the [Apply Net](TOOL_APPLY_NET.md) tool to visualize the results or save the to disk. For example, to use contour visualization for DensePose, one can run:
 ```bash
-python apply_net.py show configs/densepose_rcnn_R_50_FPN_s1x.yaml densepose_rcnn_R_50_FPN_s1x.pkl image.jpg dp_contour,bbox --output image_densepose_contour.png
+python apply_net.py show configs/densepose_rcnn_R_50_FPN_s1x.yaml models/densepose_rcnn_R_50_FPN_s1x.pkl pix/3677.jpg dp_segm,bbox --output pix/3677_segm.png --opts MODEL.DEVICE cpu
 ```
 Please see [Apply Net](TOOL_APPLY_NET.md) for more details on the tool.
+
+#### Result
+<p float="left">
+	<img src="../pix/input_bbox.jpg" width="400" />
+	<img src="../pix/3677_segm.jpg" width="400" />
+</p>
+
+#### Issues
+* https://detectron2.readthedocs.io/tutorials/install.html
+* https://pypi.org/project/av/
+* https://github.com/facebookresearch/detectron2/issues/707
+* https://github.com/facebookresearch/detectron2/issues/773
+* https://github.com/facebookresearch/detectron2/issues/300
+* https://github.com/facebookresearch/detectron2/blob/master/GETTING_STARTED.md#inference-with-pre-trained-models
 
 ## Training
 

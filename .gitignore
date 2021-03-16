@@ -3,7 +3,7 @@ output
 instant_test_output
 inference_test_output
 
-
+*.pkl
 *.png
 *.json
 *.diff
@@ -43,6 +43,7 @@ model_ts*.txt
 .idea
 .vscode
 _darcs
+.DS_Store
 
 # project dirs
 /detectron2/model_zoo/configs
