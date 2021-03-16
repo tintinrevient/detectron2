@@ -11,8 +11,8 @@ Please see [Apply Net](TOOL_APPLY_NET.md) for more details on the tool.
 
 ### Result
 <p float="left">
-	<img src="../pix/input_bbox.jpg" width="400" />
-	<img src="../pix/3677_segm.jpg" width="400" />
+	<img src="../pix/test_bbox.jpg" width="400" />
+	<img src="../pix/modigliani-1_segm.jpg" width="400" />
 </p>
 
 ### Issues
