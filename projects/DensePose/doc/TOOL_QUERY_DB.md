@@ -75,12 +75,14 @@ from `densepose_coco_2014_train` dataset:
 1. Show bounding box and segmentation:
 ```bash
 python query_db.py show densepose_coco_2014_train image_id:int=322 bbox,dp_segm -v
+python query_db.py show densepose_coco_2014_minival image_id:int=466986 bbox,dp_segm -v
 ```
 ![Bounding Box + Segmentation Visualization](images/vis_bbox_dp_segm.jpg)
 
 2. Show bounding box and points colored according to the containing part:
 ```bash
 python query_db.py show densepose_coco_2014_train image_id:int=322 bbox,dp_i -v
+python query_db.py show densepose_coco_2014_minival image_id:int=466986 bbox,dp_i -v
 ```
 ![Bounding Box + Point Label Visualization](images/vis_bbox_dp_i.jpg)
 

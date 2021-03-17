@@ -61,3 +61,8 @@ If you use DensePose, please refer to the BibTeX entries
 for [chart-based models](doc/DENSEPOSE_IUV.md#References)
 and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
 
+# References:
+* https://www.kaggle.com/changethetuneman/densepose
+* https://github.com/facebookresearch/DensePose/
+* https://github.com/cocodataset/cocoapi
+* https://detectron2.readthedocs.io/en/latest/tutorials/index.html

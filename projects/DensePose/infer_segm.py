@@ -14,7 +14,7 @@ from densepose.vis.densepose_results import DensePoseResultsFineSegmentationVisu
 from densepose.vis.bounding_box import ScoredBoundingBoxVisualizer
 from densepose.vis.extractor import CompoundExtractor, DensePoseResultExtractor, create_extractor
 
-fname = 'prudhon-3'
+fname = 'test'
 infile = os.path.join('pix', fname + '.jpg')
 outfile = os.path.join('pix', fname + '_segm.jpg')
 
@@ -61,7 +61,7 @@ im_gray = np.tile(im_gray[:, :, np.newaxis], [1, 1, 3])
 data = extractor(outputs["instances"])
 im_vis = visualizer.visualize(im_gray, data)
 
-cv2.imshow('vis', im_vis)
+cv2.imshow('segm', im_vis)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 
