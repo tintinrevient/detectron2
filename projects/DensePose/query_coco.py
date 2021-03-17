@@ -12,7 +12,6 @@ from random import randint
 coco_folder = os.path.join('datasets', 'coco')
 dp_coco = COCO(os.path.join(coco_folder, 'annotations', 'instances_train2014.json'))
 
-
 # Get the category ids
 cats = dp_coco.loadCats(dp_coco.getCatIds())
 cat_names = [cat['name'] for cat in cats]
