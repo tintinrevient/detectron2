@@ -66,3 +66,4 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
 * https://github.com/facebookresearch/DensePose/
 * https://github.com/cocodataset/cocoapi
 * https://detectron2.readthedocs.io/en/latest/tutorials/index.html
+* https://detectron2.readthedocs.io/en/latest/_modules/detectron2/utils/visualizer.html
