@@ -9,9 +9,10 @@ from detectron2.config import get_cfg
 from detectron2.utils.visualizer import Visualizer
 from detectron2.data import MetadataCatalog, DatasetCatalog
 
-fname = 'jacoulet-1'
-infile = os.path.join('pix', fname + '.jpg')
-outfile = os.path.join('pix', fname + '_keypoints.jpg')
+fname = '94510'
+artist = 'Felix Vallotton'
+infile = os.path.join('datasets', 'modern', artist, fname + '.jpg')
+outfile = os.path.join('pix', 'modern', artist, fname + '_keypoints.jpg')
 
 im = cv2.imread(infile)
 # cv2.imshow('input', im)
@@ -30,13 +31,25 @@ predictor = DefaultPredictor(cfg)
 outputs = predictor(im)
 
 # look at the outputs. See https://detectron2.readthedocs.io/tutorials/models.html#model-output-format for specification
-print(outputs["instances"].pred_classes)
-print(outputs["instances"].pred_boxes)
-print(outputs["instances"].pred_keypoints)
+# print(outputs)
+# print(outputs["instances"].pred_classes)
+# print(outputs["instances"].pred_boxes)
+# print(outputs["instances"].pred_keypoints)
+# print(outputs["instances"].scores)
+
+# filter the probabilities of scores for each bbox > 90%
+instances = outputs["instances"]
+confident_detections = instances[instances.scores > 0.8]
 
 # We can use `Visualizer` to draw the predictions on the image.
-v = Visualizer(im[:, :, ::-1], MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1.2)
-out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
+visualizer = Visualizer(im[:, :, ::-1], MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1.2)
+
+# draw all the predictions
+# out = visualizer.draw_instance_predictions(confident_detections.to("cpu"))
+
+# draw only the keypoints
+out = visualizer.draw_and_connect_keypoints(confident_detections.pred_keypoints[0,:,:])
+
 cv2.imshow('keypoints', out.get_image()[:, :, ::-1])
 cv2.waitKey(0)
 cv2.destroyAllWindows()
