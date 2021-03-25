@@ -67,12 +67,21 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
     <img src="./pix/smpl.png" width=900 />
 </p>
 
+## UV texture
+
+<p float="left">
+    <img src="pix/uv_texture_front.png" alt="densepose_front" width="250"/>
+    <img src="pix/uv_texture_back.png" alt="densepose_back" width="290"/>
+</p>
+
 # References:
 * https://www.kaggle.com/changethetuneman/densepose
 * https://github.com/facebookresearch/DensePose/
 * https://github.com/cocodataset/cocoapi
 * https://detectron2.readthedocs.io/en/latest/tutorials/index.html
 * https://detectron2.readthedocs.io/en/latest/_modules/detectron2/utils/visualizer.html
-* https://github.com/facebookresearch/DensePose/blob/master/notebooks/DensePose-COCO-on-SMPL.ipynb
 * https://github.com/facebookresearch/DensePose/blob/master/notebooks/DensePose-RCNN-Visualize-Results.ipynb
+* https://github.com/facebookresearch/DensePose/blob/master/notebooks/DensePose-COCO-on-SMPL.ipynb
 * https://github.com/facebookresearch/DensePose/blob/master/notebooks/DensePose-RCNN-Texture-Transfer.ipynb
+* https://smpl.is.tue.mpg.de/en
+* https://pytorch3d.org/tutorials/render_densepose
