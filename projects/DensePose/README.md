@@ -61,9 +61,18 @@ If you use DensePose, please refer to the BibTeX entries
 for [chart-based models](doc/DENSEPOSE_IUV.md#References)
 and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
 
+## SMPL
+
+<p float="left">
+    <img src="./pix/smpl.png" width=900 />
+</p>
+
 # References:
 * https://www.kaggle.com/changethetuneman/densepose
 * https://github.com/facebookresearch/DensePose/
 * https://github.com/cocodataset/cocoapi
 * https://detectron2.readthedocs.io/en/latest/tutorials/index.html
 * https://detectron2.readthedocs.io/en/latest/_modules/detectron2/utils/visualizer.html
+* https://github.com/facebookresearch/DensePose/blob/master/notebooks/DensePose-COCO-on-SMPL.ipynb
+* https://github.com/facebookresearch/DensePose/blob/master/notebooks/DensePose-RCNN-Visualize-Results.ipynb
+* https://github.com/facebookresearch/DensePose/blob/master/notebooks/DensePose-RCNN-Texture-Transfer.ipynb

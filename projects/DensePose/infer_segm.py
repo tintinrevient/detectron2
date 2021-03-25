@@ -38,8 +38,8 @@ cfg.MODEL.WEIGHTS = "./models/densepose_rcnn_R_50_FPN_s1x.pkl"
 predictor = DefaultPredictor(cfg)
 outputs = predictor(im)
 
-print(outputs["instances"].pred_classes)
-print(outputs["instances"].pred_boxes)
+# print(outputs["instances"].pred_classes)
+# print(outputs["instances"].pred_boxes)
 print(outputs["instances"].pred_densepose)
 
 # filter the probabilities of scores for each bbox > 90%
