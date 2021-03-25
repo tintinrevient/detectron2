@@ -13,9 +13,14 @@ from densepose.vis.base import CompoundVisualizer
 from densepose.vis.densepose_results import DensePoseResultsFineSegmentationVisualizer
 from densepose.vis.bounding_box import ScoredBoundingBoxVisualizer
 from densepose.vis.extractor import CompoundExtractor, DensePoseResultExtractor, create_extractor
+import argparse
 
-fname = 'test'
-infile = os.path.join('pix', fname + '.jpg')
+parser = argparse.ArgumentParser(description='DensePose - Infer segments')
+parser.add_argument('--input', help='Path to image')
+args = parser.parse_args()
+
+infile = args.input
+fname = infile[infile.find('/')+1:infile.rfind('.')]
 outfile = os.path.join('pix', fname + '_segm.jpg')
 
 im = cv2.imread(infile)
@@ -36,6 +41,10 @@ outputs = predictor(im)
 print(outputs["instances"].pred_classes)
 print(outputs["instances"].pred_boxes)
 print(outputs["instances"].pred_densepose)
+
+# filter the probabilities of scores for each bbox > 90%
+instances = outputs["instances"]
+confident_detections = instances[instances.scores > 0.9]
 
 visualizers = []
 
@@ -58,7 +67,13 @@ extractor = CompoundExtractor(extractors)
 
 im_gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
 im_gray = np.tile(im_gray[:, :, np.newaxis], [1, 1, 3])
-data = extractor(outputs["instances"])
+
+# instances
+# data = extractor(instances)
+
+# confident detections
+data = extractor(confident_detections)
+
 im_vis = visualizer.visualize(im_gray, data)
 
 cv2.imshow('segm', im_vis)

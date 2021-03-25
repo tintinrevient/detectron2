@@ -8,11 +8,15 @@ from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
 from detectron2.utils.visualizer import Visualizer
 from detectron2.data import MetadataCatalog, DatasetCatalog
+import argparse
 
-fname = '94510'
-artist = 'Felix Vallotton'
-infile = os.path.join('datasets', 'modern', artist, fname + '.jpg')
-outfile = os.path.join('pix', 'modern', artist, fname + '_keypoints.jpg')
+parser = argparse.ArgumentParser(description='DensePose - Infer keypoints')
+parser.add_argument('--input', help='Path to image')
+args = parser.parse_args()
+
+infile = args.input
+fname = infile[infile.find('/')+1:infile.rfind('.')]
+outfile = os.path.join('pix', fname + '_keypoints.jpg')
 
 im = cv2.imread(infile)
 # cv2.imshow('input', im)
