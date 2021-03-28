@@ -107,7 +107,7 @@ def generate_outfile(infile, index):
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description='DensePose - Infer bbox')
+    parser = argparse.ArgumentParser(description='DensePose - Infer the bbox')
     parser.add_argument('--input', help='Path to image file or directory')
     args = parser.parse_args()
 
