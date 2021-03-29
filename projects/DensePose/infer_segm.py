@@ -109,6 +109,9 @@ if __name__ == '__main__':
 
     elif os.path.isdir(args.input):
         for path in Path(args.input).rglob('*.jpg'):
-            generate_segm(infile=str(path), score_cutoff=0.9, show=False)
+            try:
+                generate_segm(infile=str(path), score_cutoff=0.9, show=False)
+            except:
+                continue
     else:
         pass

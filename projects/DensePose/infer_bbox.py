@@ -116,6 +116,9 @@ if __name__ == '__main__':
 
     elif os.path.isdir(args.input):
         for path in Path(args.input).rglob('*.jpg'):
-            generate_bbox(infile=str(path), score_cutoff=0.9, clip_bbox=True)
+            try:
+                generate_bbox(infile=str(path), score_cutoff=0.9, clip_bbox=True)
+            except:
+                continue
     else:
         pass
