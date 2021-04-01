@@ -2,6 +2,7 @@ from detectron2.utils.logger import setup_logger
 setup_logger()
 
 import numpy as np
+import time
 import os, json, cv2, random
 from detectron2 import model_zoo
 from detectron2.engine import DefaultPredictor
@@ -47,10 +48,10 @@ def generate_keypoints(infile, score_cutoff, show):
     visualizer = Visualizer(im[:, :, ::-1], MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1.2)
 
     # draw all the predictions
-    # out = visualizer.draw_instance_predictions(confident_detections.to("cpu"))
+    out = visualizer.draw_instance_predictions(confident_detections.to("cpu"))
 
-    # draw only the keypoints
-    out = visualizer.draw_and_connect_keypoints(confident_detections.pred_keypoints[0, :, :])
+    # draw only the keypoints for the first person only!
+    # out = visualizer.draw_and_connect_keypoints(confident_detections.pred_keypoints[0, :, :])
 
     if show:
         cv2.imshow('keypoints', out.get_image()[:, :, ::-1])
@@ -78,6 +79,12 @@ def generate_outfile(infile):
 
 if __name__ == '__main__':
 
+    # python infer_keypoints.py --input datasets/classical
+    # python infer_keypoints.py --input datasets/modern
+
+    # time the execution time
+    start = time.time()
+
     parser = argparse.ArgumentParser(description='DensePose - Infer the keypoints')
     parser.add_argument('--input', help='Path to image file or directory')
     args = parser.parse_args()
@@ -93,3 +100,6 @@ if __name__ == '__main__':
                 continue
     else:
         pass
+
+    end = time.time()
+    print("OpenPose demo successfully finished. Total time: " + str(end - start) + " seconds")
