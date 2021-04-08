@@ -74,6 +74,11 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
     <img src="pix/uv_texture_back.png" alt="densepose_back" width="290"/>
 </p>
 
+## DensePose Segment Extractor
+* https://raw.githubusercontent.com/tintinrevient/detectron2/main/projects/DensePose/densepose/vis/base.py
+* https://raw.githubusercontent.com/tintinrevient/detectron2/main/projects/DensePose/densepose/vis/extractor.py
+* https://raw.githubusercontent.com/tintinrevient/detectron2/main/projects/DensePose/densepose/vis/densepose_results.py
+
 # References:
 * https://www.kaggle.com/changethetuneman/densepose
 * https://github.com/facebookresearch/DensePose/
