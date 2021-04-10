@@ -70,8 +70,8 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
 ## UV texture
 
 <p float="left">
-    <img src="pix/80019_norm.jpg" width="250"/>
-    <img src="pix/81903_norm.jpg" alt="densepose_back" width="290"/>
+    <img src="pix/uv_texture_front.png" alt="densepose_front" width="250"/>
+    <img src="pix/uv_texture_back.png" alt="densepose_back" width="290"/>
 </p>
 
 ## DensePose Segment Extractor
@@ -82,8 +82,8 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
 ## DensePose Normalize
 
 <p float="left">
-    <img src="pix/uv_texture_front.png" alt="densepose_front" width="300"/>
-    <img src="pix/uv_texture_back.png" alt="densepose_back" width="300"/>
+    <img src="pix/80019_norm.jpg" width="300"/>
+    <img src="pix/81903_norm.jpg" alt="densepose_back" width="300"/>
 </p>
 
 # References:
