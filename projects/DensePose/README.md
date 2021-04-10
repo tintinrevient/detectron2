@@ -83,7 +83,7 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
 
 <p float="left">
     <img src="pix/80019_norm.jpg" width="300"/>
-    <img src="pix/81903_norm.jpg" alt="densepose_back" width="300"/>
+    <img src="pix/81903_norm.jpg" width="300"/>
 </p>
 
 # References:
