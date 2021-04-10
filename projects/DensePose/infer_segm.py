@@ -552,7 +552,7 @@ def generate_norm_segm(infile, score_cutoff, show):
     data_keypoints = np.load(file_keypoints, allow_pickle='TRUE').item()['keypoints']
 
     # Issue FIVE: how to map bbox with keypoints, if there are multiple bboxes!!!
-    # Now, it only works if bbox is only one, so keypoints is only one!
+    # Now, it only works if bbox is only one: results_densepose[0] = boxes_xywh[0] = data_keypoints[0]
     for result_densepose, box_xywh, keypoints in zip(results_densepose, boxes_xywh, data_keypoints):
 
         # extract segm + mask
