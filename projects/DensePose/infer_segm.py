@@ -27,8 +27,13 @@ from pathlib import Path
 gray_val_scale = 10.625
 cmap = cv2.COLORMAP_PARULA
 
+norm_image_shape = (5000, 5000, 3)
+norm_image_center = [2500, 2500]
+
 # files of config
-keypoints_dir = os.path.join('output', 'data')
+densepose_keypoints_dir = os.path.join('output', 'keypoints')
+openpose_keypoints_dir = os.path.join('output', 'data')
+norm_segm_dir = os.path.join('output', 'pix')
 
 # format
 # x, y => int, score => float
@@ -146,6 +151,11 @@ def _resize(mask, segm, w, h):
         segm = cv2.resize(segm, (w, h), interp_method_segm)
 
     return mask, segm
+
+
+def euclidian(point1, point2):
+
+    return np.sqrt((point1[0]-point2[0])**2 + (point1[1]-point2[1])**2)
 
 
 def _calc_angle(point1, center, point2):
@@ -422,7 +432,7 @@ def rotate_to_tpose(segm, keypoints):
 def _translate_segments_xy_with_keypoints(segments_xy, keypoints):
 
     mid_xy = np.array(keypoints['MidHip'])[0:2]
-    diff_xy = np.array([1000, 1000]) - mid_xy
+    diff_xy = np.array(norm_image_center) - mid_xy
 
     translated_segments_xy = (np.array(segment) + diff_xy for segment in segments_xy)
     translated_keypoints = {key: (np.array(value) + np.append(diff_xy, 0)) for key, value in keypoints.items()}
@@ -430,7 +440,7 @@ def _translate_segments_xy_with_keypoints(segments_xy, keypoints):
     return translated_segments_xy, translated_keypoints
 
 
-def _draw_segments_xy_with_keypoint(image, segments_xy, keypoints):
+def draw_segments_xy_with_keypoint(image, segments_xy, keypoints):
 
     head_xy, torso_xy, body_xy, \
     r_thigh_xy, l_thigh_xy, r_calf_xy, l_calf_xy, \
@@ -474,7 +484,36 @@ def _draw_segments_xy_with_keypoint(image, segments_xy, keypoints):
     return image
 
 
-def visualize_norm_segm(image_bgr, mask, segm, bbox_xywh, keypoints):
+def crop_and_resize_image(image, keypoints):
+
+    bbox = np.array(list(keypoints.values()))
+
+    min_x, min_y, _ = bbox.min(axis=0).astype(int)
+    max_x, max_y, _ = bbox.max(axis=0).astype(int)
+    edge_x = max_x - min_x
+    edge_y = max_y - min_y
+
+    defaut_margin = 50
+    if edge_x > edge_y:
+        margin_x = defaut_margin
+        margin_y = int((edge_x + defaut_margin * 2 - edge_y) / 2)
+    elif edge_y > edge_x:
+        margin_y = defaut_margin
+        margin_x = int((edge_y + defaut_margin * 2 - edge_x) / 2)
+    else:
+        margin_x = defaut_margin
+        margin_y = defaut_margin
+
+    # crop
+    cropped_image = image[min_y - margin_y:max_y + margin_y, min_x - margin_x:max_x + margin_x]
+
+    # resize
+    resized_image = cv2.resize(cropped_image, (1000, 1000), interpolation=cv2.INTER_AREA)
+
+    return resized_image
+
+
+def visualize_norm_segm(image_bgr, mask, segm, bbox_xywh, keypoints, infile, show=False):
 
     x, y, w, h = [int(v) for v in bbox_xywh]
 
@@ -488,34 +527,42 @@ def visualize_norm_segm(image_bgr, mask, segm, bbox_xywh, keypoints):
     keypoints = dict(zip(JOINT_ID, keypoints))
 
     # visualize original pose by bbox
-    segm_scaled = segm.astype(np.float32) * gray_val_scale
-    segm_scaled_8u = segm_scaled.clip(0, 255).astype(np.uint8)
+    if show:
+        segm_scaled = segm.astype(np.float32) * gray_val_scale
+        segm_scaled_8u = segm_scaled.clip(0, 255).astype(np.uint8)
 
-    # apply cmap
-    segm_vis = cv2.applyColorMap(segm_scaled_8u, cmap)
+        # apply cmap
+        segm_vis = cv2.applyColorMap(segm_scaled_8u, cmap)
 
-    cv2.imshow('bbox:', segm_vis)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+        cv2.imshow('bbox:', segm_vis)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
     # visualize normalized pose
     # rotate to t-pose
     tpose_segments_xy, tpose_keypoints = rotate_to_tpose(segm=segm, keypoints=keypoints)
 
     # white background image
-    # Issue SIX: how to normalize different-dimension bbox!!!
-    image = np.empty((2000, 2000, 3), np.uint8)
+    image = np.empty(norm_image_shape, np.uint8)
     image.fill(255)
 
+    # translate to center
     translated_segments_xy, translated_keypoints = _translate_segments_xy_with_keypoints(segments_xy = tpose_segments_xy, keypoints=tpose_keypoints)
 
-    _draw_segments_xy_with_keypoint(image, segments_xy=translated_segments_xy, keypoints=translated_keypoints)
+    # draw
+    draw_segments_xy_with_keypoint(image, segments_xy=translated_segments_xy, keypoints=translated_keypoints)
 
-    resized = cv2.resize(image, (1000, 1000), interpolation=cv2.INTER_AREA)
+    # crop
+    resized_image = crop_and_resize_image(image=image, keypoints=translated_keypoints)
 
-    cv2.imshow('norm', resized)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    if show:
+        cv2.imshow('norm', resized_image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+    else:
+        outfile = generate_norm_segm_outfile(infile)
+        cv2.imwrite(outfile, resized_image)
+        print('output', outfile)
 
 
 def generate_norm_segm(infile, score_cutoff, show):
@@ -548,7 +595,7 @@ def generate_norm_segm(infile, score_cutoff, show):
     boxes_xywh = boxes_xywh.numpy()
 
     # load keypoints
-    file_keypoints = os.path.join(keypoints_dir, '{}_keypoints.npy'.format(infile[infile.find('/') + 1:infile.rfind('.')]))
+    file_keypoints = os.path.join(openpose_keypoints_dir, '{}_keypoints.npy'.format(infile[infile.find('/') + 1:infile.rfind('.')]))
     data_keypoints = np.load(file_keypoints, allow_pickle='TRUE').item()['keypoints']
 
     # Issue FIVE: how to map bbox with keypoints, if there are multiple bboxes!!!
@@ -559,7 +606,20 @@ def generate_norm_segm(infile, score_cutoff, show):
         mask, segm = extract_segm(result_densepose=result_densepose)
 
         # visualizer
-        visualize_norm_segm(image_bgr=im_gray, mask=mask, segm=segm, bbox_xywh=box_xywh, keypoints=keypoints)
+        visualize_norm_segm(image_bgr=im_gray, mask=mask, segm=segm, bbox_xywh=box_xywh, keypoints=keypoints, infile=infile, show=show)
+
+
+def generate_norm_segm_outfile(infile):
+
+    outdir = os.path.join(norm_segm_dir, infile[infile.find('/') + 1:infile.rfind('/')])
+
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+
+    fname = infile[infile.find('/') + 1:infile.rfind('.')]
+    outfile = os.path.join(norm_segm_dir, '{}_norm.jpg'.format(fname))
+
+    return outfile
 
 
 def generate_segm(infile, score_cutoff, show):
@@ -625,20 +685,20 @@ def generate_segm(infile, score_cutoff, show):
         cv2.destroyAllWindows()
 
     else:
-        outfile = generate_outfile(infile)
+        outfile = generate_segm_outfile(infile)
         cv2.imwrite(outfile, image_vis)
         print('output:', outfile)
 
 
-def generate_outfile(infile):
+def generate_segm_outfile(infile):
 
-    outdir = os.path.join('output', infile[infile.find('/') + 1:infile.rfind('/')])
+    outdir = os.path.join(densepose_keypoints_dir, infile[infile.find('/') + 1:infile.rfind('/')])
 
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
     fname = infile[infile.find('/') + 1:infile.rfind('.')]
-    outfile = os.path.join('output', '{}_segm.jpg'.format(fname))
+    outfile = os.path.join(densepose_keypoints_dir, '{}_segm.jpg'.format(fname))
 
     return outfile
 
