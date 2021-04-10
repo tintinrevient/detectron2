@@ -503,6 +503,7 @@ def visualize_norm_segm(image_bgr, mask, segm, bbox_xywh, keypoints):
     tpose_segments_xy, tpose_keypoints = rotate_to_tpose(segm=segm, keypoints=keypoints)
 
     # white background image
+    # Issue SIX: how to normalize different-dimension bbox!!!
     image = np.empty((2000, 2000, 3), np.uint8)
     image.fill(255)
 
@@ -550,6 +551,8 @@ def generate_norm_segm(infile, score_cutoff, show):
     file_keypoints = os.path.join(keypoints_dir, '{}_keypoints.npy'.format(infile[infile.find('/') + 1:infile.rfind('.')]))
     data_keypoints = np.load(file_keypoints, allow_pickle='TRUE').item()['keypoints']
 
+    # Issue FIVE: how to map bbox with keypoints, if there are multiple bboxes!!!
+    # Now, it only works if bbox is only one, so keypoints is only one!
     for result_densepose, box_xywh, keypoints in zip(results_densepose, boxes_xywh, data_keypoints):
 
         # extract segm + mask
