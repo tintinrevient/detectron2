@@ -403,7 +403,8 @@ def rotate_to_tpose(segm, keypoints):
 
     # Issue ONE: cannot rotate body to [Face-front + Torso-front] view!!!
     # Issue TWO: cannot have the same person -> so it can be a fat person or a thin person!!!
-    # Issue THREE: NO mapped hand and foot keypoints to rotate them!!!
+    # Issue THREE: NO mapped HAND and FOOT keypoints to rotate them!!!
+    # Issue FOUR: NOSE is not at the middle point of the head, e.g., face right, face left, so cannot normalize HEAD!!!
 
     # STEP 1: rotated any pose to a vertical pose, i.e., stand up, sit up, etc...
     # extract original segment's x, y
