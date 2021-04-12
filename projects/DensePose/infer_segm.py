@@ -21,6 +21,7 @@ import torch
 
 import argparse
 from pathlib import Path
+import matplotlib.pyplot as plt
 
 
 # setting
@@ -28,7 +29,12 @@ gray_val_scale = 10.625
 cmap = cv2.COLORMAP_PARULA
 
 norm_image_shape = (5000, 5000, 3)
-norm_image_center = [2500, 2500]
+norm_image_center = (2500, 2500)
+
+resized_image_dim = (1000, 1000)
+
+keypoints_radius = 5
+keypoints_color = (0, 0, 0)
 
 # files of config
 densepose_keypoints_dir = os.path.join('output', 'keypoints')
@@ -39,6 +45,7 @@ norm_segm_dir = os.path.join('output', 'pix')
 # keypoints = {key: (x, y, score)}
 # pixel = (x, y)
 # segments_xy = [(x1, y1), (x2, y2), ...]
+# segm = [[x1, y1]=(b,g,r), [x2, y2]=(b,g,r), ...] -> 2D np.ndarray
 
 # coarse segmentation:
 # 0 = Background
@@ -48,14 +55,38 @@ norm_segm_dir = os.path.join('output', 'pix')
 # 10 = Upper Arm Left, 11 = Upper Arm Right, 12 = Lower Arm Left, 13 = Lower Arm Right,
 # 14 = Head
 
-COARSE_ID = [
-    'Background',
-    'Torso',
-    'RHand', 'LHand', 'LFoot', 'RFoot',
-    'RThigh', 'LThigh', 'RCalf', 'LCalf',
-    'LUpperArm', 'RUpperArm', 'LLowerArm', 'RLowerArm',
-    'Head'
-]
+COARSE_ID = {
+    'Background': 0,
+    'Torso': 1,
+    'RHand': 2,
+    'LHand': 3,
+    'LFoot': 4,
+    'RFoot':5,
+    'RThigh': 6,
+    'LThigh': 7,
+    'RCalf': 8,
+    'LCalf': 9,
+    'LUpperArm': 10,
+    'RUpperArm': 11,
+    'LLowerArm': 12,
+    'RLowerArm': 13,
+    'Head': 14
+}
+
+# implicit cmap = cv2.COLORMAP_PARULA <= hard-coded!!! ugh!!!
+COARSE_TO_COLOR = {
+    'Background': [255, 255, 255],
+    'Torso': [191, 78, 22],
+    'RThigh': [167, 181, 44],
+    'LThigh': [141, 187, 91],
+    'RCalf': [114, 191, 147],
+    'LCalf': [96, 188, 192],
+    'LUpperArm': [87, 207, 112],
+    'RUpperArm': [55, 218, 162],
+    'LLowerArm': [25, 226, 216],
+    'RLowerArm': [37, 231, 253],
+    'Head': [14, 251, 249]
+}
 
 # fine segmentation:
 # 0 = Background
@@ -212,11 +243,19 @@ def _segm_xy(segm, segm_id_list, is_equal=True):
     return list(zip(x, y))
 
 
+def _segments_xy_centroid(segments_xy):
+
+    x = [segment_xy[0] for segment_xy in segments_xy]
+    y = [segment_xy[1] for segment_xy in segments_xy]
+    centroid = (sum(x) / len(segments_xy), sum(y) / len(segments_xy))
+
+    return centroid
+
+
 def get_segments_xy(segm):
 
     head_xy = _segm_xy(segm=segm, segm_id_list=[14])
     torso_xy = _segm_xy(segm=segm, segm_id_list=[1])
-    body_xy = _segm_xy(segm=segm, segm_id_list=[0], is_equal=False)
 
     r_thigh_xy = _segm_xy(segm=segm, segm_id_list=[6])
     l_thigh_xy = _segm_xy(segm=segm, segm_id_list=[7])
@@ -228,14 +267,14 @@ def get_segments_xy(segm):
     l_lower_arm_xy = _segm_xy(segm=segm, segm_id_list=[12])
     r_lower_arm_xy = _segm_xy(segm=segm, segm_id_list=[13])
 
-    return (head_xy, torso_xy, body_xy,
+    return (head_xy, torso_xy,
             r_thigh_xy, l_thigh_xy, r_calf_xy, l_calf_xy,
             l_upper_arm_xy, r_upper_arm_xy, l_lower_arm_xy, r_lower_arm_xy)
 
 
 def rotate_to_vertical_segments_xy_with_keypoints(segments_xy, keypoints):
 
-    (head_xy, torso_xy, body_xy,
+    (head_xy, torso_xy,
      r_thigh_xy, l_thigh_xy, r_calf_xy, l_calf_xy,
      l_upper_arm_xy, r_upper_arm_xy, l_lower_arm_xy, r_lower_arm_xy) = segments_xy
 
@@ -258,18 +297,18 @@ def rotate_to_vertical_segments_xy_with_keypoints(segments_xy, keypoints):
     r_lower_arm_xy = [_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in r_lower_arm_xy]
 
     # rotate keypoints to vertical pose
-    rotated_keypoints = {key: _rotate(value, keypoints['MidHip'], rad) for key, value in keypoints.items()}
+    vertical_keypoints = {key: _rotate(value, keypoints['MidHip'], rad) for key, value in keypoints.items()}
 
-    return (head_xy, torso_xy, body_xy,
+    return (head_xy, torso_xy,
             r_thigh_xy, l_thigh_xy, r_calf_xy, l_calf_xy,
-            l_upper_arm_xy, r_upper_arm_xy, l_lower_arm_xy, r_lower_arm_xy), rotated_keypoints
+            l_upper_arm_xy, r_upper_arm_xy, l_lower_arm_xy, r_lower_arm_xy), vertical_keypoints
 
 
 def rotate_to_tpose_segments_xy_with_keypoints(segments_xy, keypoints):
 
     tpose_lower_limb_rad_factor = 10
 
-    (head_xy, torso_xy, body_xy,
+    (head_xy, torso_xy,
      r_thigh_xy, l_thigh_xy, r_calf_xy, l_calf_xy,
      l_upper_arm_xy, r_upper_arm_xy, l_lower_arm_xy, r_lower_arm_xy) = segments_xy
 
@@ -282,10 +321,12 @@ def rotate_to_tpose_segments_xy_with_keypoints(segments_xy, keypoints):
     # knee -> thigh
     # ankle -> calf
 
-    # head
-    # rad, deg = _calc_angle(keypoints.get('Nose'), keypoints.get('Neck'), keypoints.get('MidHip'))
-    # rad = rad + np.pi
-    # head_xy = [_rotate([x, y], keypoints.get('Neck'), rad) for (x, y) in head_xy]
+    # head -> NOT use Nose, use Centroid of head_xy!!!
+    # ONE solution to Issue FOUR: NOSE is not at the middle point of the head!!!
+    head_centroid = _segments_xy_centroid(head_xy)
+    rad, deg = _calc_angle(head_centroid, keypoints.get('Neck'), keypoints.get('MidHip'))
+    rad = rad + np.pi
+    head_xy = [_rotate([x, y], keypoints.get('Neck'), rad) for (x, y) in head_xy]
 
     # RIGHT
     # Upper Limb
@@ -399,7 +440,7 @@ def rotate_to_tpose_segments_xy_with_keypoints(segments_xy, keypoints):
     tpose_keypoints['LKnee'] = _rotate(keypoints.get('LKnee'), keypoints.get('LHip'), rad)
     tpose_keypoints['LAnkle'] = _rotate(keypoints.get('LAnkle'), keypoints.get('LHip'), rad)
 
-    return (head_xy, torso_xy, body_xy,
+    return (head_xy, torso_xy,
             r_thigh_xy, l_thigh_xy, r_calf_xy, l_calf_xy,
             l_upper_arm_xy, r_upper_arm_xy, l_lower_arm_xy, r_lower_arm_xy), tpose_keypoints
 
@@ -409,17 +450,17 @@ def rotate_to_tpose(segm, keypoints):
     # Issue ONE: cannot rotate body to [Face-front + Torso-front] view!!!
     # Issue TWO: cannot have the same person -> so it can be a fat person or a thin person!!!
     # Issue THREE: NO mapped HAND and FOOT keypoints to rotate them!!!
-    # Issue FOUR: NOSE is not at the middle point of the head, e.g., face right, face left, so cannot normalize HEAD!!!
+    # *Issue FOUR*: NOSE is not at the middle point of the head, e.g., face right, face left, so cannot normalize HEAD!!!
 
     # STEP 1: rotated any pose to a vertical pose, i.e., stand up, sit up, etc...
     # extract original segment's x, y
     segments_xy = get_segments_xy(segm=segm)
 
     # rotated segment to vertical pose, i.e., stand up, sit up, etc...
-    rotated_segments_xy, rotated_keypoints = rotate_to_vertical_segments_xy_with_keypoints(segments_xy=segments_xy, keypoints=keypoints)
+    vertical_segments_xy, vertical_keypoints = rotate_to_vertical_segments_xy_with_keypoints(segments_xy=segments_xy, keypoints=keypoints)
 
     # STEP 2: rotate specific segment further to t-pose
-    tpose_segments_xy, tpose_keypoints = rotate_to_tpose_segments_xy_with_keypoints(segments_xy=rotated_segments_xy, keypoints=rotated_keypoints)
+    tpose_segments_xy, tpose_keypoints = rotate_to_tpose_segments_xy_with_keypoints(segments_xy=vertical_segments_xy, keypoints=vertical_keypoints)
 
     return tpose_segments_xy, tpose_keypoints
 
@@ -435,49 +476,45 @@ def translate_segments_xy_with_keypoints(segments_xy, keypoints):
     return translated_segments_xy, translated_keypoints
 
 
-def draw_segments_xy_with_keypoint(image, segments_xy, keypoints):
+def draw_segments_xy(segments_xy):
 
-    head_xy, torso_xy, body_xy, \
-    r_thigh_xy, l_thigh_xy, r_calf_xy, l_calf_xy, \
-    l_upper_arm_xy, r_upper_arm_xy, l_lower_arm_xy, r_lower_arm_xy = segments_xy
+    (head_xy, torso_xy,
+     r_thigh_xy, l_thigh_xy, r_calf_xy, l_calf_xy,
+     l_upper_arm_xy, r_upper_arm_xy, l_lower_arm_xy, r_lower_arm_xy) = segments_xy
 
-    # first draw body
-    for x, y in body_xy.astype(int):
-        image = cv2.circle(image, (x, y), radius=10, color=(192, 192, 192), thickness=-1)
+    # initial background image
+    image = np.empty(norm_image_shape, np.uint8)
+    image.fill(255)  # => white (255, 255, 255) = background
 
-    # then draw head + torso
+    # first: draw head + torso
     for x, y in head_xy.astype(int):
-        image = cv2.circle(image, (x, y), radius=5, color=(255, 0, 0), thickness=-1)
+        image[y][x] = COARSE_TO_COLOR['Head']
     for x, y in torso_xy.astype(int):
-        image = cv2.circle(image, (x, y), radius=5, color=(0, 0, 255), thickness=-1)
+        image[y][x] = COARSE_TO_COLOR['Torso']
 
-    # last draw limbs
+    # second: draw limbs
     for x, y in r_thigh_xy.astype(int):
-        image = cv2.circle(image, (x, y), radius=5, color=(255, 255, 0), thickness=-1)
+        image[y][x] = COARSE_TO_COLOR['RThigh']
     for x, y in l_thigh_xy.astype(int):
-        image = cv2.circle(image, (x, y), radius=5, color=(0, 255, 255), thickness=-1)
+        image[y][x] = COARSE_TO_COLOR['LThigh']
     for x, y in r_calf_xy.astype(int):
-        image = cv2.circle(image, (x, y), radius=5, color=(255, 255, 0), thickness=-1)
+        image[y][x] = COARSE_TO_COLOR['RCalf']
     for x, y in l_calf_xy.astype(int):
-        image = cv2.circle(image, (x, y), radius=5, color=(0, 255, 255), thickness=-1)
+        image[y][x] = COARSE_TO_COLOR['LCalf']
 
     for x, y in l_upper_arm_xy.astype(int):
-        image = cv2.circle(image, (x, y), radius=5, color=(255, 0, 255), thickness=-1)
+        image[y][x] = COARSE_TO_COLOR['LUpperArm']
     for x, y in r_upper_arm_xy.astype(int):
-        image = cv2.circle(image, (x, y), radius=5, color=(0, 255, 0), thickness=-1)
+        image[y][x] = COARSE_TO_COLOR['RUpperArm']
     for x, y in l_lower_arm_xy.astype(int):
-        image = cv2.circle(image, (x, y), radius=5, color=(255, 0, 255), thickness=-1)
+        image[y][x] = COARSE_TO_COLOR['LLowerArm']
     for x, y in r_lower_arm_xy.astype(int):
-        image = cv2.circle(image, (x, y), radius=5, color=(0, 255, 0), thickness=-1)
+        image[y][x] = COARSE_TO_COLOR['RLowerArm']
 
-    if keypoints:
-        for keypoint in keypoints.values():
-            x, y, score = keypoint
-            if score > 0:
-                image = cv2.circle(image, (int(x), int(y)), radius=10, color=(0, 0, 0), thickness=-1)
+    return image
 
 
-def crop_and_resize_image(image, keypoints):
+def crop_and_resize_image_with_keypoints(image, keypoints):
 
     bbox = np.array(list(keypoints.values()))
 
@@ -497,11 +534,31 @@ def crop_and_resize_image(image, keypoints):
         margin_x = defaut_margin
         margin_y = defaut_margin
 
-    # crop
-    image = image[min_y - margin_y:max_y + margin_y, min_x - margin_x:max_x + margin_x]
+    # crop image
+    min_x, min_y = min_x - margin_x, min_y - margin_y
+    max_x, max_y = max_x + margin_x, max_y + margin_y
+    cropped_image = image[min_y:max_y, min_x:max_x]
 
-    # resize
-    image = cv2.resize(image, (1000, 1000), interpolation=cv2.INTER_AREA)
+    # resize image
+    resized_image = cv2.resize(cropped_image, resized_image_dim, interpolation=cv2.INTER_AREA)
+
+    # draw keypoints on resized image
+    cropped_height, cropped_width, _ = cropped_image.shape
+    resized_height, resized_width, _ = resized_image.shape
+
+    ignore_keypoints_ids = ['Nose', 'REye', 'LEye', 'REar', 'LEar', 'LBigToe', 'LSmallToe', 'LHeel', 'RBigToe', 'RSmallToe', 'RHeel']
+
+    if keypoints:
+        for id, keypoint in keypoints.items():
+                x, y, score = keypoint
+                if score > 0 and id not in ignore_keypoints_ids:
+                    # translate + scale
+                    x = (x - min_x) / cropped_width * resized_width
+                    y = (y - min_y) / cropped_height * resized_height
+
+                    resized_image = cv2.circle(resized_image, (int(x), int(y)), radius=keypoints_radius, color=keypoints_color, thickness=-1)
+
+    return resized_image
 
 
 def visualize_norm_segm(image_bgr, mask, segm, bbox_xywh, keypoints, infile, show=False):
@@ -536,23 +593,19 @@ def visualize_norm_segm(image_bgr, mask, segm, bbox_xywh, keypoints, infile, sho
     # translate to center
     translated_segments_xy, translated_keypoints = translate_segments_xy_with_keypoints(segments_xy = tpose_segments_xy, keypoints=tpose_keypoints)
 
-    # white background image
-    image = np.empty(norm_image_shape, np.uint8)
-    image.fill(255)
+    # draw segments in image
+    image = draw_segments_xy(segments_xy=translated_segments_xy)
 
-    # draw
-    draw_segments_xy_with_keypoint(image, segments_xy=translated_segments_xy, keypoints=translated_keypoints)
-
-    # crop
-    crop_and_resize_image(image=image, keypoints=translated_keypoints)
+    # crop and resize image with keypoints
+    resized_image = crop_and_resize_image_with_keypoints(image=image, keypoints=translated_keypoints)
 
     if show:
-        cv2.imshow('norm', image)
+        cv2.imshow('norm', resized_image)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
     else:
         outfile = generate_norm_segm_outfile(infile)
-        cv2.imwrite(outfile, image)
+        cv2.imwrite(outfile, resized_image)
         print('output', outfile)
 
 
@@ -700,6 +753,7 @@ if __name__ == '__main__':
     # python infer_segm.py --input datasets/modern
 
     # python infer_segm.py --input datasets/modern/Paul\ Delvaux/80019.jpg
+    # python infer_segm.py --input datasets/modern/Paul\ Delvaux/81903.jpg
 
     parser = argparse.ArgumentParser(description='DensePose - Infer the segments')
     parser.add_argument('--input', help='Path to image file or directory')
