@@ -267,6 +267,60 @@ def get_segments_xy(segm):
     l_lower_arm_xy = _segm_xy(segm=segm, segm_id_list=[12])
     r_lower_arm_xy = _segm_xy(segm=segm, segm_id_list=[13])
 
+
+    if np.array(head_xy).size > 0:
+        head_xy = np.array(head_xy)
+    else:
+        head_xy = np.array([])
+
+    if np.array(torso_xy).size > 0:
+        torso_xy = np.array(torso_xy)
+    else:
+        torso_xy = np.array([])
+
+
+    if np.array(r_thigh_xy).size > 0:
+        r_thigh_xy = np.array(r_thigh_xy)
+    else:
+        r_thigh_xy = np.array([])
+
+    if np.array(l_thigh_xy).size > 0:
+        l_thigh_xy = np.array(l_thigh_xy)
+    else:
+        l_thigh_xy = np.array([])
+
+    if np.array(r_calf_xy).size > 0:
+        r_calf_xy = np.array(r_calf_xy)
+    else:
+        r_calf_xy = np.array([])
+
+    if np.array(l_calf_xy).size > 0:
+        l_calf_xy = np.array(l_calf_xy)
+    else:
+        l_calf_xy = np.array([])
+
+
+    if np.array(l_upper_arm_xy).size > 0:
+        l_upper_arm_xy = np.array(l_upper_arm_xy)
+    else:
+        l_upper_arm_xy = np.array([])
+
+    if np.array(r_upper_arm_xy).size > 0:
+        r_upper_arm_xy = np.array(r_upper_arm_xy)
+    else:
+        r_upper_arm_xy = np.array([])
+
+    if np.array(l_lower_arm_xy).size > 0:
+        l_lower_arm_xy = np.array(l_lower_arm_xy)
+    else:
+        l_lower_arm_xy = np.array([])
+
+    if np.array(r_lower_arm_xy).size > 0:
+        r_lower_arm_xy = np.array(r_lower_arm_xy)
+    else:
+        r_lower_arm_xy = np.array([])
+
+
     return (head_xy, torso_xy,
             r_thigh_xy, l_thigh_xy, r_calf_xy, l_calf_xy,
             l_upper_arm_xy, r_upper_arm_xy, l_lower_arm_xy, r_lower_arm_xy)
@@ -283,18 +337,38 @@ def rotate_to_vertical_segments_xy_with_keypoints(segments_xy, keypoints):
     rad, deg = _calc_angle(point1=keypoints['Neck'], center=keypoints['MidHip'], point2=reference_point)
 
     # rotate segments to vertical pose
-    head_xy = [_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in head_xy]
-    torso_xy = [_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in torso_xy]
+    if head_xy.size > 0:
+        head_xy = np.array([_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in head_xy])
 
-    r_thigh_xy = [_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in r_thigh_xy]
-    l_thigh_xy = [_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in l_thigh_xy]
-    r_calf_xy = [_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in r_calf_xy]
-    l_calf_xy = [_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in l_calf_xy]
+    if torso_xy.size > 0:
+        torso_xy = np.array([_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in torso_xy])
 
-    l_upper_arm_xy = [_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in l_upper_arm_xy]
-    r_upper_arm_xy = [_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in r_upper_arm_xy]
-    l_lower_arm_xy = [_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in l_lower_arm_xy]
-    r_lower_arm_xy = [_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in r_lower_arm_xy]
+
+    if r_thigh_xy.size > 0:
+        r_thigh_xy = np.array([_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in r_thigh_xy])
+
+    if l_thigh_xy.size > 0:
+        l_thigh_xy = np.array([_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in l_thigh_xy])
+
+    if r_calf_xy.size > 0:
+        r_calf_xy = np.array([_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in r_calf_xy])
+
+    if l_calf_xy.size > 0:
+        l_calf_xy = np.array([_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in l_calf_xy])
+
+
+    if l_upper_arm_xy.size > 0:
+        l_upper_arm_xy = np.array([_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in l_upper_arm_xy])
+
+    if r_upper_arm_xy.size > 0:
+        r_upper_arm_xy = np.array([_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in r_upper_arm_xy])
+
+    if l_lower_arm_xy.size > 0:
+        l_lower_arm_xy = np.array([_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in l_lower_arm_xy])
+
+    if r_lower_arm_xy.size > 0:
+        r_lower_arm_xy = np.array([_rotate((x, y), keypoints['MidHip'], rad) for (x, y) in r_lower_arm_xy])
+
 
     # rotate keypoints to vertical pose
     vertical_keypoints = {key: _rotate(value, keypoints['MidHip'], rad) for key, value in keypoints.items()}
@@ -323,122 +397,135 @@ def rotate_to_tpose_segments_xy_with_keypoints(segments_xy, keypoints):
 
     # head -> NOT use Nose, use Centroid of head_xy!!!
     # ONE solution to Issue FOUR: NOSE is not at the middle point of the head!!!
-    head_centroid = _segments_xy_centroid(head_xy)
-    rad, deg = _calc_angle(head_centroid, keypoints.get('Neck'), keypoints.get('MidHip'))
-    rad = rad + np.pi
-    head_xy = [_rotate([x, y], keypoints.get('Neck'), rad) for (x, y) in head_xy]
+    if head_xy.size > 0:
+        head_centroid = _segments_xy_centroid(head_xy)
+        rad, deg = _calc_angle(head_centroid, keypoints.get('Neck'), keypoints.get('MidHip'))
+        rad = rad + np.pi
+        head_xy = np.array([_rotate([x, y], keypoints.get('Neck'), rad) for (x, y) in head_xy])
 
     # RIGHT
     # Upper Limb
     # rotate lower arm to align with upper arm
-    rad, deg = _calc_angle(keypoints.get('RWrist'), keypoints.get('RElbow'), keypoints.get('RShoulder'))
-    rad = rad + np.pi
-    r_lower_arm_xy = [_rotate((x, y), keypoints.get('RElbow'), rad) for (x, y) in r_lower_arm_xy]
+    if r_lower_arm_xy.size > 0:
+        rad, deg = _calc_angle(keypoints.get('RWrist'), keypoints.get('RElbow'), keypoints.get('RShoulder'))
+        rad = rad + np.pi
+        r_lower_arm_xy = np.array([_rotate((x, y), keypoints.get('RElbow'), rad) for (x, y) in r_lower_arm_xy])
 
-    tpose_keypoints['RWrist'] = _rotate(keypoints.get('RWrist'), keypoints.get('RElbow'), rad)
+        tpose_keypoints['RWrist'] = _rotate(keypoints.get('RWrist'), keypoints.get('RElbow'), rad)
 
     # rotate upper limb to align with shoulder
-    rad, deg = _calc_angle(keypoints.get('RElbow'), keypoints.get('RShoulder'), keypoints.get('Neck'))
-    rad = rad + np.pi
-    r_upper_arm_xy = [_rotate((x, y), keypoints.get('RShoulder'), rad) for (x, y) in r_upper_arm_xy]
-    r_lower_arm_xy = [_rotate((x, y), keypoints.get('RShoulder'), rad) for (x, y) in r_lower_arm_xy]
+    if r_lower_arm_xy.size > 0 and r_upper_arm_xy.size > 0:
+        rad, deg = _calc_angle(keypoints.get('RElbow'), keypoints.get('RShoulder'), keypoints.get('Neck'))
+        rad = rad + np.pi
+        r_upper_arm_xy = np.array([_rotate((x, y), keypoints.get('RShoulder'), rad) for (x, y) in r_upper_arm_xy])
+        r_lower_arm_xy = np.array([_rotate((x, y), keypoints.get('RShoulder'), rad) for (x, y) in r_lower_arm_xy])
 
-    tpose_keypoints['RWrist'] = _rotate(keypoints.get('RWrist'), keypoints.get('RShoulder'), rad)
-    tpose_keypoints['RElbow'] = _rotate(keypoints.get('RElbow'), keypoints.get('RShoulder'), rad)
+        tpose_keypoints['RWrist'] = _rotate(keypoints.get('RWrist'), keypoints.get('RShoulder'), rad)
+        tpose_keypoints['RElbow'] = _rotate(keypoints.get('RElbow'), keypoints.get('RShoulder'), rad)
 
     # rotate shoulder to horizontal pose
-    rad, deg = _calc_angle(keypoints.get('RShoulder'), keypoints.get('Neck'), keypoints.get('MidHip'))
-    rad = rad + np.pi/2
-    r_upper_arm_xy = [_rotate((x, y), keypoints.get('Neck'), rad) for (x, y) in r_upper_arm_xy]
-    r_lower_arm_xy = [_rotate((x, y), keypoints.get('Neck'), rad) for (x, y) in r_lower_arm_xy]
+    if r_lower_arm_xy.size > 0 and r_upper_arm_xy.size > 0:
+        rad, deg = _calc_angle(keypoints.get('RShoulder'), keypoints.get('Neck'), keypoints.get('MidHip'))
+        rad = rad + np.pi / 2
+        r_upper_arm_xy = np.array([_rotate((x, y), keypoints.get('Neck'), rad) for (x, y) in r_upper_arm_xy])
+        r_lower_arm_xy = np.array([_rotate((x, y), keypoints.get('Neck'), rad) for (x, y) in r_lower_arm_xy])
 
-    tpose_keypoints['RShoulder'] = _rotate(keypoints.get('RShoulder'), keypoints.get('Neck'), rad)
-    tpose_keypoints['RWrist'] = _rotate(keypoints.get('RWrist'), keypoints.get('Neck'), rad)
-    tpose_keypoints['RElbow'] = _rotate(keypoints.get('RElbow'), keypoints.get('Neck'), rad)
+        tpose_keypoints['RShoulder'] = _rotate(keypoints.get('RShoulder'), keypoints.get('Neck'), rad)
+        tpose_keypoints['RWrist'] = _rotate(keypoints.get('RWrist'), keypoints.get('Neck'), rad)
+        tpose_keypoints['RElbow'] = _rotate(keypoints.get('RElbow'), keypoints.get('Neck'), rad)
 
     # Lower Limb
     # rotate calf to align with thigh
-    rad, deg = _calc_angle(keypoints.get('RAnkle'), keypoints.get('RKnee'), keypoints.get('RHip'))
-    rad = rad + np.pi
-    r_calf_xy = [_rotate((x, y), keypoints.get('RKnee'), rad) for (x, y) in r_calf_xy]
+    if r_calf_xy.size > 0:
+        rad, deg = _calc_angle(keypoints.get('RAnkle'), keypoints.get('RKnee'), keypoints.get('RHip'))
+        rad = rad + np.pi
+        r_calf_xy = np.array([_rotate((x, y), keypoints.get('RKnee'), rad) for (x, y) in r_calf_xy])
 
-    tpose_keypoints['RAnkle'] = _rotate(keypoints.get('RAnkle'), keypoints.get('RKnee'), rad)
+        tpose_keypoints['RAnkle'] = _rotate(keypoints.get('RAnkle'), keypoints.get('RKnee'), rad)
 
     # rotate hip to horizontal
-    rad, deg = _calc_angle(keypoints.get('RHip'), keypoints.get('MidHip'), keypoints.get('Neck'))
-    rad = rad - np.pi/2
-    r_thigh_xy = [_rotate([x, y], keypoints.get('MidHip'), rad) for (x, y) in r_thigh_xy]
-    r_calf_xy = [_rotate([x, y], keypoints.get('MidHip'), rad) for (x, y) in r_calf_xy]
+    if r_calf_xy.size > 0 and r_thigh_xy.size > 0:
+        rad, deg = _calc_angle(keypoints.get('RHip'), keypoints.get('MidHip'), keypoints.get('Neck'))
+        rad = rad - np.pi / 2
+        r_thigh_xy = np.array([_rotate([x, y], keypoints.get('MidHip'), rad) for (x, y) in r_thigh_xy])
+        r_calf_xy = np.array([_rotate([x, y], keypoints.get('MidHip'), rad) for (x, y) in r_calf_xy])
 
-    tpose_keypoints['RHip'] = _rotate(keypoints.get('RHip'), keypoints.get('MidHip'), rad)
-    tpose_keypoints['RKnee'] = _rotate(keypoints.get('RKnee'), keypoints.get('MidHip'), rad)
-    tpose_keypoints['RAnkle'] = _rotate(keypoints.get('RAnkle'), keypoints.get('MidHip'), rad)
+        tpose_keypoints['RHip'] = _rotate(keypoints.get('RHip'), keypoints.get('MidHip'), rad)
+        tpose_keypoints['RKnee'] = _rotate(keypoints.get('RKnee'), keypoints.get('MidHip'), rad)
+        tpose_keypoints['RAnkle'] = _rotate(keypoints.get('RAnkle'), keypoints.get('MidHip'), rad)
 
     # rotate lower limb to degree np.pi/10 from vertical line
-    rhip_ref = np.array(keypoints.get('RHip')[0:2]) + np.array([0, 100])
-    rad, deg = _calc_angle(keypoints.get('RKnee'), keypoints.get('RHip'), rhip_ref)
-    rad = rad + np.pi/tpose_lower_limb_rad_factor
-    r_thigh_xy = [_rotate((x, y), keypoints.get('RHip'), rad) for (x, y) in r_thigh_xy]
-    r_calf_xy = [_rotate((x, y), keypoints.get('RHip'), rad) for (x, y) in r_calf_xy]
+    if r_calf_xy.size > 0 and r_thigh_xy.size > 0:
+        rhip_ref = np.array(keypoints.get('RHip')[0:2]) + np.array([0, 100])
+        rad, deg = _calc_angle(keypoints.get('RKnee'), keypoints.get('RHip'), rhip_ref)
+        rad = rad + np.pi / tpose_lower_limb_rad_factor
+        r_thigh_xy = np.array([_rotate((x, y), keypoints.get('RHip'), rad) for (x, y) in r_thigh_xy])
+        r_calf_xy = np.array([_rotate((x, y), keypoints.get('RHip'), rad) for (x, y) in r_calf_xy])
 
-    tpose_keypoints['RKnee'] = _rotate(keypoints.get('RKnee'), keypoints.get('RHip'), rad)
-    tpose_keypoints['RAnkle'] = _rotate(keypoints.get('RAnkle'), keypoints.get('RHip'), rad)
+        tpose_keypoints['RKnee'] = _rotate(keypoints.get('RKnee'), keypoints.get('RHip'), rad)
+        tpose_keypoints['RAnkle'] = _rotate(keypoints.get('RAnkle'), keypoints.get('RHip'), rad)
 
     # LEFT
     # Upper Limb
     # rotate lower arm to align with upper arm
-    rad, deg = _calc_angle(keypoints.get('LWrist'), keypoints.get('LElbow'), keypoints.get('LShoulder'))
-    rad = rad + np.pi
-    l_lower_arm_xy = [_rotate((x, y), keypoints.get('LElbow'), rad) for (x, y) in l_lower_arm_xy]
+    if l_lower_arm_xy.size > 0:
+        rad, deg = _calc_angle(keypoints.get('LWrist'), keypoints.get('LElbow'), keypoints.get('LShoulder'))
+        rad = rad + np.pi
+        l_lower_arm_xy = np.array([_rotate((x, y), keypoints.get('LElbow'), rad) for (x, y) in l_lower_arm_xy])
 
-    tpose_keypoints['LWrist'] = _rotate(keypoints.get('LWrist'), keypoints.get('LElbow'), rad)
+        tpose_keypoints['LWrist'] = _rotate(keypoints.get('LWrist'), keypoints.get('LElbow'), rad)
 
     # rotate upper limb to align with shoulder
-    rad, deg = _calc_angle(keypoints.get('LElbow'), keypoints.get('LShoulder'), keypoints.get('Neck'))
-    rad = rad + np.pi
-    l_upper_arm_xy = [_rotate((x, y), keypoints.get('LShoulder'), rad) for (x, y) in l_upper_arm_xy]
-    l_lower_arm_xy = [_rotate((x, y), keypoints.get('LShoulder'), rad) for (x, y) in l_lower_arm_xy]
+    if l_lower_arm_xy.size > 0 and l_upper_arm_xy.size > 0:
+        rad, deg = _calc_angle(keypoints.get('LElbow'), keypoints.get('LShoulder'), keypoints.get('Neck'))
+        rad = rad + np.pi
+        l_upper_arm_xy = np.array([_rotate((x, y), keypoints.get('LShoulder'), rad) for (x, y) in l_upper_arm_xy])
+        l_lower_arm_xy = np.array([_rotate((x, y), keypoints.get('LShoulder'), rad) for (x, y) in l_lower_arm_xy])
 
-    tpose_keypoints['LWrist'] = _rotate(keypoints.get('LWrist'), keypoints.get('LShoulder'), rad)
-    tpose_keypoints['LElbow'] = _rotate(keypoints.get('LElbow'), keypoints.get('LShoulder'), rad)
+        tpose_keypoints['LWrist'] = _rotate(keypoints.get('LWrist'), keypoints.get('LShoulder'), rad)
+        tpose_keypoints['LElbow'] = _rotate(keypoints.get('LElbow'), keypoints.get('LShoulder'), rad)
 
     # rotate shoulder to horizontal
-    rad, deg = _calc_angle(keypoints.get('LShoulder'), keypoints.get('Neck'), keypoints.get('MidHip'))
-    rad = rad - np.pi/2
-    l_upper_arm_xy = [_rotate((x, y), keypoints.get('Neck'), rad) for (x, y) in l_upper_arm_xy]
-    l_lower_arm_xy = [_rotate((x, y), keypoints.get('Neck'), rad) for (x, y) in l_lower_arm_xy]
+    if l_lower_arm_xy.size > 0 and l_upper_arm_xy.size > 0:
+        rad, deg = _calc_angle(keypoints.get('LShoulder'), keypoints.get('Neck'), keypoints.get('MidHip'))
+        rad = rad - np.pi / 2
+        l_upper_arm_xy = np.array([_rotate((x, y), keypoints.get('Neck'), rad) for (x, y) in l_upper_arm_xy])
+        l_lower_arm_xy = np.array([_rotate((x, y), keypoints.get('Neck'), rad) for (x, y) in l_lower_arm_xy])
 
-    tpose_keypoints['LShoulder'] = _rotate(keypoints.get('LShoulder'), keypoints.get('Neck'), rad)
-    tpose_keypoints['LWrist'] = _rotate(keypoints.get('LWrist'), keypoints.get('Neck'), rad)
-    tpose_keypoints['LElbow'] = _rotate(keypoints.get('LElbow'), keypoints.get('Neck'), rad)
+        tpose_keypoints['LShoulder'] = _rotate(keypoints.get('LShoulder'), keypoints.get('Neck'), rad)
+        tpose_keypoints['LWrist'] = _rotate(keypoints.get('LWrist'), keypoints.get('Neck'), rad)
+        tpose_keypoints['LElbow'] = _rotate(keypoints.get('LElbow'), keypoints.get('Neck'), rad)
 
     # Lower Limb
     # rotate calf to align with thigh
-    rad, deg = _calc_angle(keypoints.get('LAnkle'), keypoints.get('LKnee'), keypoints.get('LHip'))
-    rad = rad + np.pi
-    l_calf_xy = [_rotate((x, y), keypoints.get('LKnee'), rad) for (x, y) in l_calf_xy]
+    if l_calf_xy.size > 0:
+        rad, deg = _calc_angle(keypoints.get('LAnkle'), keypoints.get('LKnee'), keypoints.get('LHip'))
+        rad = rad + np.pi
+        l_calf_xy = np.array([_rotate((x, y), keypoints.get('LKnee'), rad) for (x, y) in l_calf_xy])
 
-    tpose_keypoints['LAnkle'] = _rotate(keypoints.get('LAnkle'), keypoints.get('LKnee'), rad)
+        tpose_keypoints['LAnkle'] = _rotate(keypoints.get('LAnkle'), keypoints.get('LKnee'), rad)
 
     # rotate hip to horizontal
-    rad, deg = _calc_angle(keypoints.get('LHip'), keypoints.get('MidHip'), keypoints.get('Neck'))
-    rad = rad + np.pi/2
-    l_thigh_xy = [_rotate((x, y), keypoints.get('MidHip'), rad) for (x, y) in l_thigh_xy]
-    l_calf_xy = [_rotate((x, y), keypoints.get('MidHip'), rad) for (x, y) in l_calf_xy]
+    if l_calf_xy.size > 0 and l_thigh_xy.size > 0:
+        rad, deg = _calc_angle(keypoints.get('LHip'), keypoints.get('MidHip'), keypoints.get('Neck'))
+        rad = rad + np.pi / 2
+        l_thigh_xy = np.array([_rotate((x, y), keypoints.get('MidHip'), rad) for (x, y) in l_thigh_xy])
+        l_calf_xy = np.array([_rotate((x, y), keypoints.get('MidHip'), rad) for (x, y) in l_calf_xy])
 
-    tpose_keypoints['LHip'] = _rotate(keypoints.get('LHip'), keypoints.get('MidHip'), rad)
-    tpose_keypoints['LKnee'] = _rotate(keypoints.get('LKnee'), keypoints.get('MidHip'), rad)
-    tpose_keypoints['LAnkle'] = _rotate(keypoints.get('LAnkle'), keypoints.get('MidHip'), rad)
+        tpose_keypoints['LHip'] = _rotate(keypoints.get('LHip'), keypoints.get('MidHip'), rad)
+        tpose_keypoints['LKnee'] = _rotate(keypoints.get('LKnee'), keypoints.get('MidHip'), rad)
+        tpose_keypoints['LAnkle'] = _rotate(keypoints.get('LAnkle'), keypoints.get('MidHip'), rad)
 
     # rotate lower limb to degree np.pi / 8 from vertical line
-    lhip_ref = np.array(keypoints.get('LHip')[0:2]) + np.array([0, 100])
-    rad, deg = _calc_angle(keypoints.get('LKnee'), keypoints.get('LHip'), lhip_ref)
-    rad = rad - np.pi/tpose_lower_limb_rad_factor
-    l_thigh_xy = [_rotate((x, y), keypoints.get('LHip'), rad) for (x, y) in l_thigh_xy]
-    l_calf_xy = [_rotate((x, y), keypoints.get('LHip'), rad) for (x, y) in l_calf_xy]
+    if l_calf_xy.size > 0 and l_thigh_xy.size > 0:
+        lhip_ref = np.array(keypoints.get('LHip')[0:2]) + np.array([0, 100])
+        rad, deg = _calc_angle(keypoints.get('LKnee'), keypoints.get('LHip'), lhip_ref)
+        rad = rad - np.pi / tpose_lower_limb_rad_factor
+        l_thigh_xy = np.array([_rotate((x, y), keypoints.get('LHip'), rad) for (x, y) in l_thigh_xy])
+        l_calf_xy = np.array([_rotate((x, y), keypoints.get('LHip'), rad) for (x, y) in l_calf_xy])
 
-    tpose_keypoints['LKnee'] = _rotate(keypoints.get('LKnee'), keypoints.get('LHip'), rad)
-    tpose_keypoints['LAnkle'] = _rotate(keypoints.get('LAnkle'), keypoints.get('LHip'), rad)
+        tpose_keypoints['LKnee'] = _rotate(keypoints.get('LKnee'), keypoints.get('LHip'), rad)
+        tpose_keypoints['LAnkle'] = _rotate(keypoints.get('LAnkle'), keypoints.get('LHip'), rad)
 
     return (head_xy, torso_xy,
             r_thigh_xy, l_thigh_xy, r_calf_xy, l_calf_xy,
@@ -470,9 +557,7 @@ def translate_segments_xy_with_keypoints(segments_xy, keypoints):
     mid_xy = np.array(keypoints['MidHip'])[0:2]
     diff_xy = np.array(norm_image_center) - mid_xy
 
-    print('diff_xy:', diff_xy)
-
-    translated_segments_xy = (np.array(segment_xy) + diff_xy if np.array(segment_xy).shape[0] > 0 else np.array([]) for segment_xy in segments_xy)
+    translated_segments_xy = np.array([np.array(segment_xy) + diff_xy if segment_xy.size > 0 else np.array([]) for segment_xy in segments_xy])
     translated_keypoints = {key: (np.array(value) + np.append(diff_xy, 0)) for key, value in keypoints.items()}
 
     return translated_segments_xy, translated_keypoints
@@ -827,6 +912,7 @@ if __name__ == '__main__':
     # python infer_segm.py --input datasets/modern/Paul\ Delvaux/81903.jpg
     # buggy
     # python infer_segm.py --input datasets/modern/Paul\ Delvaux/25239.jpg
+    # python infer_segm.py --input datasets/modern/Paul\ Delvaux/16338.jpg
 
     parser = argparse.ArgumentParser(description='DensePose - Infer the segments')
     parser.add_argument('--input', help='Path to image file or directory')
