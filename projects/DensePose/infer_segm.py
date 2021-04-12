@@ -245,8 +245,8 @@ def _segm_xy(segm, segm_id_list, is_equal=True):
 
 def _segments_xy_centroid(segments_xy):
 
-    x = [segment_xy[0] for segment_xy in segments_xy]
-    y = [segment_xy[1] for segment_xy in segments_xy]
+    x = [segment_xy[0] for segment_xy in segments_xy if not np.isnan(segment_xy[0])]
+    y = [segment_xy[1] for segment_xy in segments_xy if not np.isnan(segment_xy[1])]
     centroid = (sum(x) / len(segments_xy), sum(y) / len(segments_xy))
 
     return centroid
@@ -470,7 +470,9 @@ def translate_segments_xy_with_keypoints(segments_xy, keypoints):
     mid_xy = np.array(keypoints['MidHip'])[0:2]
     diff_xy = np.array(norm_image_center) - mid_xy
 
-    translated_segments_xy = (np.array(segment) + diff_xy for segment in segments_xy)
+    print('diff_xy:', diff_xy)
+
+    translated_segments_xy = (np.array(segment_xy) + diff_xy if np.array(segment_xy).shape[0] > 0 else np.array([]) for segment_xy in segments_xy)
     translated_keypoints = {key: (np.array(value) + np.append(diff_xy, 0)) for key, value in keypoints.items()}
 
     return translated_segments_xy, translated_keypoints
@@ -488,28 +490,38 @@ def draw_segments_xy(segments_xy):
 
     # first: draw head + torso
     for x, y in head_xy.astype(int):
-        image[y][x] = COARSE_TO_COLOR['Head']
+        if x < norm_image_shape[0] and y < norm_image_shape[1]:
+            image[y][x] = COARSE_TO_COLOR['Head']
     for x, y in torso_xy.astype(int):
-        image[y][x] = COARSE_TO_COLOR['Torso']
+        if x < norm_image_shape[0] and y < norm_image_shape[1]:
+            image[y][x] = COARSE_TO_COLOR['Torso']
 
     # second: draw limbs
     for x, y in r_thigh_xy.astype(int):
-        image[y][x] = COARSE_TO_COLOR['RThigh']
+        if x < norm_image_shape[0] and y < norm_image_shape[1]:
+            image[y][x] = COARSE_TO_COLOR['RThigh']
     for x, y in l_thigh_xy.astype(int):
-        image[y][x] = COARSE_TO_COLOR['LThigh']
+        if x < norm_image_shape[0] and y < norm_image_shape[1]:
+            image[y][x] = COARSE_TO_COLOR['LThigh']
     for x, y in r_calf_xy.astype(int):
-        image[y][x] = COARSE_TO_COLOR['RCalf']
+        if x < norm_image_shape[0] and y < norm_image_shape[1]:
+            image[y][x] = COARSE_TO_COLOR['RCalf']
     for x, y in l_calf_xy.astype(int):
-        image[y][x] = COARSE_TO_COLOR['LCalf']
+        if x < norm_image_shape[0] and y < norm_image_shape[1]:
+            image[y][x] = COARSE_TO_COLOR['LCalf']
 
     for x, y in l_upper_arm_xy.astype(int):
-        image[y][x] = COARSE_TO_COLOR['LUpperArm']
+        if x < norm_image_shape[0] and y < norm_image_shape[1]:
+            image[y][x] = COARSE_TO_COLOR['LUpperArm']
     for x, y in r_upper_arm_xy.astype(int):
-        image[y][x] = COARSE_TO_COLOR['RUpperArm']
+        if x < norm_image_shape[0] and y < norm_image_shape[1]:
+            image[y][x] = COARSE_TO_COLOR['RUpperArm']
     for x, y in l_lower_arm_xy.astype(int):
-        image[y][x] = COARSE_TO_COLOR['LLowerArm']
+        if x < norm_image_shape[0] and y < norm_image_shape[1]:
+            image[y][x] = COARSE_TO_COLOR['LLowerArm']
     for x, y in r_lower_arm_xy.astype(int):
-        image[y][x] = COARSE_TO_COLOR['RLowerArm']
+        if x < norm_image_shape[0] and y < norm_image_shape[1]:
+            image[y][x] = COARSE_TO_COLOR['RLowerArm']
 
     return image
 
@@ -609,6 +621,64 @@ def visualize_norm_segm(image_bgr, mask, segm, bbox_xywh, keypoints, infile, sho
         print('output', outfile)
 
 
+def stitch_data(results_densepose, boxes_xywh, data_keypoints, image, show):
+
+    # print('length of results_densepose:', len(results_densepose))
+    # print('length of boxes_xywh:', len(boxes_xywh))
+    # print('length of data_keypoints:', len(data_keypoints))
+
+    matched_results_densepose = []
+    matched_boxes_xywh = []
+    matched_data_keypoints = []
+
+    image_h, image_w, _ = image.shape
+
+    for result_densepose, box_xywh in zip(results_densepose, boxes_xywh):
+
+        x, y, w, h = box_xywh.astype(int)
+        prop_w = w / image_w
+        prop_h = h / image_h
+
+        # condition 1: height of bbox > 0.5 * im_h
+        if prop_h >= 0.6:
+
+            for keypoints in data_keypoints:
+
+                keypoints = [[x, y, score] for x, y, score in keypoints if score != 0]
+                centroid_x, centroid_y = _segments_xy_centroid(keypoints)
+
+                # condition 2: centroid (x, y) of keypoints within bbox
+                if centroid_x > x and centroid_x < (x + w) and centroid_y > y and centroid_y < (y + h):
+
+                    matched_results_densepose.append(result_densepose)
+                    matched_boxes_xywh.append(box_xywh)
+                    matched_data_keypoints.append(keypoints)
+
+                    cv2.circle(image, (int(centroid_x), int(centroid_y)), radius=5, color=(255, 0, 255), thickness=5)
+
+                    cv2.line(image, (x, y), (int(x + w), y), color=(0, 255, 0), thickness=5)
+                    cv2.line(image, (x, y), (x, int(y + h)), color=(0, 255, 0), thickness=5)
+                    cv2.line(image, (int(x + w), int(y + h)), (x, int(y + h)), color=(0, 255, 0), thickness=5)
+                    cv2.line(image, (int(x + w), int(y + h)), (int(x + w), y), color=(0, 255, 0), thickness=5)
+
+                    for keypoint in keypoints:
+                        x, y, _ = keypoint
+                        cv2.circle(image, (int(x), int(y)), radius=5, color=(0, 255, 255), thickness=5)
+
+                    break
+
+    if show:
+        cv2.imshow('stitched data', image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+    # print('length of matched_results_densepose:', len(matched_results_densepose))
+    # print('length of matched_boxes_xywh:', len(matched_boxes_xywh))
+    # print('length of matched_data_keypoints:', len(matched_data_keypoints))
+
+    return matched_results_densepose, matched_boxes_xywh, matched_data_keypoints
+
+
 def generate_norm_segm(infile, score_cutoff, show):
 
     print('input:', infile)
@@ -642,9 +712,10 @@ def generate_norm_segm(infile, score_cutoff, show):
     file_keypoints = os.path.join(openpose_keypoints_dir, '{}_keypoints.npy'.format(infile[infile.find('/') + 1:infile.rfind('.')]))
     data_keypoints = np.load(file_keypoints, allow_pickle='TRUE').item()['keypoints']
 
-    # Issue FIVE: how to map bbox with keypoints, if there are multiple bboxes!!!
-    # Now, it only works if bbox is only one: results_densepose[0] = boxes_xywh[0] = data_keypoints[0]
-    for result_densepose, box_xywh, keypoints in zip(results_densepose, boxes_xywh, data_keypoints):
+    # stitch DensePose segments with OpenPose keypoints!
+    matched_results_densepose, matched_boxes_xywh, matched_data_keypoints = stitch_data(results_densepose, boxes_xywh, data_keypoints, im_gray, show=show)
+
+    for result_densepose, box_xywh, keypoints in zip(matched_results_densepose, matched_boxes_xywh, matched_data_keypoints):
 
         # extract segm + mask
         mask, segm = extract_segm(result_densepose=result_densepose)
@@ -754,6 +825,8 @@ if __name__ == '__main__':
 
     # python infer_segm.py --input datasets/modern/Paul\ Delvaux/80019.jpg
     # python infer_segm.py --input datasets/modern/Paul\ Delvaux/81903.jpg
+    # buggy
+    # python infer_segm.py --input datasets/modern/Paul\ Delvaux/25239.jpg
 
     parser = argparse.ArgumentParser(description='DensePose - Infer the segments')
     parser.add_argument('--input', help='Path to image file or directory')
@@ -766,7 +839,8 @@ if __name__ == '__main__':
     elif os.path.isdir(args.input):
         for path in Path(args.input).rglob('*.jpg'):
             try:
-                generate_segm(infile=str(path), score_cutoff=0.9, show=False)
+                # generate_segm(infile=str(path), score_cutoff=0.9, show=False)
+                generate_norm_segm(infile=args.input, score_cutoff=0.95, show=False)
             except:
                 continue
     else:
