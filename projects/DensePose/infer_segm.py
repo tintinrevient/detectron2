@@ -611,7 +611,8 @@ def _translate_and_scale_segm(image, segm_id, segm_xy, keypoint, ref_point, scal
     min_y = int(y - h / 2)
     max_y = int(y + h / 2)
 
-    image[min_y:max_y, min_x:max_x] = img_bg
+    if min_x > 0 and min_y > 0:
+        image[min_y:max_y, min_x:max_x] = img_bg
 
     if segm_id == 'Head':
         return scaler
@@ -731,7 +732,7 @@ def draw_segments_xy(segments_xy):
     cv2.circle(image, tuple(norm_mid_torso_xy), radius=10, color=(255, 0, 255), thickness=-1)
 
     # upper limbs
-    cv2.circle(image, tuple(norm_mid_lupper_arm_xy), radius=10, color=(255, 0, 255), thickness=-1)
+    cv2.circle(image, tuple(norm_mid_rupper_arm_xy), radius=10, color=(255, 0, 255), thickness=-1)
     cv2.circle(image, tuple(norm_mid_rlower_arm_xy), radius=10, color=(255, 0, 255), thickness=-1)
     cv2.circle(image, tuple(norm_mid_lupper_arm_xy), radius=10, color=(255, 0, 255), thickness=-1)
     cv2.circle(image, tuple(norm_mid_llower_arm_xy), radius=10, color=(255, 0, 255), thickness=-1)
