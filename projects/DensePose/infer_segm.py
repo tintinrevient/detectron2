@@ -562,7 +562,7 @@ def rotate_segments_xy(segm, keypoints):
 
     # Issue ONE: cannot rotate body to [Face-front + Torso-front] view!!!
     # Issue TWO: cannot have the same person -> so it can be a fat person or a thin person!!!
-    # Issue THREE: NO mapped HAND and FOOT keypoints to rotate them!!!
+    # *Issue THREE*: NO mapped HAND and FOOT keypoints to rotate them - hands are feet are ignored in analysis!!!
     # *Issue FOUR*: NOSE is not at the middle point of the head, e.g., face right, face left, so cannot normalize HEAD!!!
 
     # STEP 1: rotated any pose to a vertical pose, i.e., stand up, sit up, etc...
@@ -996,25 +996,40 @@ if __name__ == '__main__':
     # python infer_segm.py --input datasets/classical
     # python infer_segm.py --input datasets/modern
 
-    # python infer_segm.py --input datasets/modern/Paul\ Delvaux/80019.jpg
-    # python infer_segm.py --input datasets/modern/Paul\ Delvaux/81903.jpg
-    # buggy
-    # python infer_segm.py --input datasets/modern/Paul\ Delvaux/25239.jpg
-    # python infer_segm.py --input datasets/modern/Paul\ Delvaux/16338.jpg
+    # test cases
+    # python infer_segm.py --input datasets/modern/Paul\ Delvaux/80019.jpg --output norm
+    # python infer_segm.py --input datasets/modern/Paul\ Delvaux/81903.jpg --output norm
+
+    # buggy cases
+    # python infer_segm.py --input datasets/modern/Paul\ Delvaux/25239.jpg --output norm
+    # python infer_segm.py --input datasets/modern/Paul\ Delvaux/16338.jpg --output norm
+
+    # perfect cases
+    # python infer_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg --output norm
+    # python infer_segm.py --input datasets/classical/Michelangelo/12758.jpg --output norm
+
+    # failed cases
+    # python infer_segm.py --input datasets/modern/Paul\ Gauguin/14206.jpg --output norm
+    # python infer_segm.py --input datasets/modern/Paul\ Gauguin/97975.jpg --output norm
 
     parser = argparse.ArgumentParser(description='DensePose - Infer the segments')
     parser.add_argument('--input', help='Path to image file or directory')
+    parser.add_argument('--output', help='segm is segment only, norm is normalized segment')
     args = parser.parse_args()
 
     if os.path.isfile(args.input):
-        # generate_segm(infile=args.input, score_cutoff=0.95, show=True)
-        generate_norm_segm(infile=args.input, score_cutoff=0.95, show=True)
+        if args.output == 'segm':
+            generate_segm(infile=args.input, score_cutoff=0.95, show=True)
+        elif args.output == 'norm':
+            generate_norm_segm(infile=args.input, score_cutoff=0.95, show=True)
 
     elif os.path.isdir(args.input):
         for path in Path(args.input).rglob('*.jpg'):
             try:
-                # generate_segm(infile=str(path), score_cutoff=0.9, show=False)
-                generate_norm_segm(infile=args.input, score_cutoff=0.95, show=False)
+                if args.output == 'segm':
+                    generate_segm(infile=str(path), score_cutoff=0.9, show=False)
+                elif args.output == 'norm':
+                    generate_norm_segm(infile=args.input, score_cutoff=0.95, show=False)
             except:
                 continue
     else:
