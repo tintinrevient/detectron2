@@ -610,14 +610,15 @@ def rotate_segments_xy(segm, keypoints):
 
 def _translate_and_scale_segm(image, segm_id, segm_xy, keypoint, ref_point, scaler):
 
-    # translate
+    # translate segment
     diff_xy = np.array(ref_point) - np.array(keypoint)[0:2]
     segm_xy = np.array([np.array(xy) + np.array(diff_xy) for xy in segm_xy])
 
-    # draw on background image
+    # calculate bbox of segment
     min_x, min_y = np.min(segm_xy, axis=0).astype(int)
     max_x, max_y = np.max(segm_xy, axis=0).astype(int)
 
+    # draw segment on background image
     img_bg = np.empty(norm_img_shape, np.uint8)
     img_bg.fill(255)
     img_bg[:, :, 3] = 0 # alpha channel = 0 -> transparent
@@ -625,7 +626,7 @@ def _translate_and_scale_segm(image, segm_id, segm_xy, keypoint, ref_point, scal
     for x, y in segm_xy.astype(int):
         cv2.circle(img_bg, (x, y), radius=5, color=COARSE_TO_COLOR[segm_id], thickness=-1)
 
-    # crop within bbox
+    # crop image within bbox
     img_bg = img_bg[min_y:max_y, min_x:max_x]
     h, w, _ = img_bg.shape
 
@@ -633,10 +634,11 @@ def _translate_and_scale_segm(image, segm_id, segm_xy, keypoint, ref_point, scal
     if segm_id == 'Head':
         scaler = 200 / w
 
-    # resize by scaler
+    # resize image by scaler
     img_bg = cv2.resize(img_bg, (int(w * scaler), int(h * scaler)), cv2.INTER_LINEAR)
     h, w, _ = img_bg.shape
 
+    # stitch image to the full image
     x, y = ref_point
     min_x = int(x - w / 2)
     max_x = int(x + w / 2)
