@@ -254,10 +254,11 @@ def is_valid(keypoints):
 
     keypoints = dict(zip(JOINT_ID, keypoints))
 
-    # filter the main keypoints by score = 0
-    filtered_keypoints = [key for key, value in keypoints.items() if key in main_keypoints and value[2] == 0]
+    # filter the main keypoints by score > 0
+    filtered_keypoints = [key for key, value in keypoints.items() if key in main_keypoints and value[2] > 0]
+    print('Number of valid keypoints (must be equal to 7):', len(filtered_keypoints))
 
-    if len(filtered_keypoints) != 0:
+    if len(filtered_keypoints) != 7:
         return False
     else:
         return True
@@ -610,48 +611,47 @@ def rotate_segments_xy(segm, keypoints):
 
 def _translate_and_scale_segm(image, segm_id, segm_xy, keypoint, ref_point, scaler):
 
-    # translate segment
-    diff_xy = np.array(ref_point) - np.array(keypoint)[0:2]
-    segm_xy = np.array([np.array(xy) + np.array(diff_xy) for xy in segm_xy])
+    print('Segment ID:', segm_id)
 
-    # calculate bbox of segment
     min_x, min_y = np.min(segm_xy, axis=0).astype(int)
     max_x, max_y = np.max(segm_xy, axis=0).astype(int)
 
-    # draw segment on background image
-    img_bg = np.empty(norm_img_shape, np.uint8)
+    margin = 5
+
+    w = int(max_x - min_x + margin*2)
+    h = int(max_y - min_y + margin*2)
+
+    img_bg = np.empty((h, w, 4), np.uint8)
     img_bg.fill(255)
-    img_bg[:, :, 3] = 0 # alpha channel = 0 -> transparent
+    img_bg[:, :, 3] = 0  # alpha channel = 0 -> transparent
 
     for x, y in segm_xy.astype(int):
+        x = int(x - min_x + margin)
+        y = int(y - min_y + margin)
         cv2.circle(img_bg, (x, y), radius=5, color=COARSE_TO_COLOR[segm_id], thickness=-1)
 
-    # crop image within bbox
-    img_bg = img_bg[min_y:max_y, min_x:max_x]
-    h, w, _ = img_bg.shape
-
-    # universal scale factor!
-    if segm_id == 'Head':
+    if segm_id == 'Head' and w > 0:
         scaler = 200 / w
 
-    # resize image by scaler
     img_bg = cv2.resize(img_bg, (int(w * scaler), int(h * scaler)), cv2.INTER_LINEAR)
     h, w, _ = img_bg.shape
 
-    # stitch image to the full image
+    keypoint_x, keypoint_y = ((np.array(keypoint)[0:2] - np.array([min_x, min_y]) + np.array([margin, margin])) * scaler).astype(int)
+
     x, y = ref_point
-    min_x = int(x - w / 2)
-    max_x = int(x + w / 2)
-    min_y = int(y - h / 2)
-    max_y = int(y + h / 2)
+    min_x = int(x - keypoint_x)
+    max_x = int(x + w - keypoint_x)
+    min_y = int(y - keypoint_y)
+    max_y = int(y + h - keypoint_y)
 
-    if min_x > 0 and min_y > 0:
+    cond_bg = img_bg[:, :, 3] > 0  # condition for already-drawn segment pixels
+    image[min_y:max_y, min_x:max_x, :][cond_bg] = img_bg[cond_bg]
 
-        img_target = image[min_y:max_y, min_x:max_x, :]
-        cond_bg = img_bg[:,:,3] > 0 # condition for already-drawn segment pixels
-        img_target[cond_bg] = img_bg[cond_bg]
-
-        # image[min_y:max_y, min_x:max_x, :] = image[min_y:max_y, min_x:max_x, :] * 0.5 + img_bg * 0.5
+    # test each segment
+    # cv2.circle(img_bg, (keypoint_x, keypoint_y), radius=5,color=(255, 255, 0), thickness=-1)
+    # cv2.imshow('test', img_bg)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
 
     if segm_id == 'Head':
         return scaler
@@ -783,9 +783,7 @@ def draw_segments_xy(segments_xy):
     cv2.circle(image, tuple(norm_mid_lthigh_xy), radius=10, color=(255, 0, 255), thickness=-1)
     cv2.circle(image, tuple(norm_mid_lcalf_xy), radius=10, color=(255, 0, 255), thickness=-1)
 
-    cv2.imshow('test', image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    return image
 
 
 def visualize_norm_segm(image_bg, mask, segm, bbox_xywh, keypoints, infile, show=False):
@@ -818,16 +816,20 @@ def visualize_norm_segm(image_bg, mask, segm, bbox_xywh, keypoints, infile, show
     segments_xy = rotate_segments_xy(segm=segm, keypoints=keypoints)
 
     # draw segments in normalized image
-    draw_segments_xy(segments_xy=segments_xy)
+    image = draw_segments_xy(segments_xy=segments_xy)
 
-    # if show:
-    #     cv2.imshow('norm', resized_image)
-    #     cv2.waitKey(0)
-    #     cv2.destroyAllWindows()
-    # else:
-    #     outfile = generate_norm_segm_outfile(infile)
-    #     cv2.imwrite(outfile, resized_image)
-    #     print('output', outfile)
+    if show:
+        outfile = generate_norm_segm_outfile(infile)
+        cv2.imwrite(outfile, image)
+        print('output', outfile)
+
+        cv2.imshow('norm', image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+    else:
+        outfile = generate_norm_segm_outfile(infile)
+        cv2.imwrite(outfile, image)
+        print('output', outfile)
 
 
 def stitch_data(results_densepose, boxes_xywh, data_keypoints, image, show):
@@ -1036,6 +1038,20 @@ if __name__ == '__main__':
     # python infer_segm.py --input datasets/classical
     # python infer_segm.py --input datasets/modern
 
+    # example cases
+    # modern
+    # python infer_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg --output norm
+    # python infer_segm.py --input datasets/modern/Paul\ Gauguin/14206.jpg --output norm
+
+    # classical
+    # python infer_segm.py --input datasets/classical/Pierre-Auguste\ Renoir/96672.jpg --output norm
+    # python infer_segm.py --input datasets/classical/Pierre-Auguste\ Renoir/90411.jpg --output norm
+    # python infer_segm.py --input datasets/classical/Pierre-Auguste\ Renoir/79467.jpg --output norm
+    # python infer_segm.py --input datasets/classical/Michelangelo/12758.jpg --output norm
+    # python infer_segm.py --input datasets/classical/Artemisia\ Gentileschi/45093.jpg --output norm
+    # python infer_segm.py --input datasets/classical/El\ Greco/4651.jpg --output norm
+    # python infer_segm.py --input datasets/classical/Pierre-Paul\ Prud\'hon/48529.jpg --output norm
+
     # test cases
     # python infer_segm.py --input datasets/modern/Paul\ Delvaux/80019.jpg --output norm
     # python infer_segm.py --input datasets/modern/Paul\ Delvaux/81903.jpg --output norm
@@ -1043,14 +1059,14 @@ if __name__ == '__main__':
     # buggy cases
     # python infer_segm.py --input datasets/modern/Paul\ Delvaux/25239.jpg --output norm
     # python infer_segm.py --input datasets/modern/Paul\ Delvaux/16338.jpg --output norm
-
-    # perfect cases
-    # python infer_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg --output norm
-    # python infer_segm.py --input datasets/classical/Michelangelo/12758.jpg --output norm
+    # python infer_segm.py --input datasets/modern/Tamara\ de\ Lempicka/61475.jpg --output norm
 
     # failed cases
-    # python infer_segm.py --input datasets/modern/Paul\ Gauguin/14206.jpg --output norm
-    # python infer_segm.py --input datasets/modern/Paul\ Gauguin/97975.jpg --output norm
+    # python infer_segm.py --input datasets/modern/Felix\ Vallotton/55787.jpg --output norm
+    # python infer_segm.py --input datasets/classical/Michelangelo/6834.jpg --output norm
+    # python infer_segm.py --input datasets/classical/Michelangelo/26362.jpg --output norm
+    # python infer_segm.py --input datasets/classical/Michelangelo/44006.jpg --output norm
+    # python infer_segm.py --input datasets/classical/Michelangelo/62566.jpg --output norm
 
     parser = argparse.ArgumentParser(description='DensePose - Infer the segments')
     parser.add_argument('--input', help='Path to image file or directory')
