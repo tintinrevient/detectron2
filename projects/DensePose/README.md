@@ -74,16 +74,15 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
     <img src="pix/uv_texture_back.png" alt="densepose_back" width="290"/>
 </p>
 
-## DensePose Segment Extractor
+## DensePose segment extractor
 * https://raw.githubusercontent.com/tintinrevient/detectron2/main/projects/DensePose/densepose/vis/base.py
 * https://raw.githubusercontent.com/tintinrevient/detectron2/main/projects/DensePose/densepose/vis/extractor.py
 * https://raw.githubusercontent.com/tintinrevient/detectron2/main/projects/DensePose/densepose/vis/densepose_results.py
 
-## DensePose Normalize
+## DensePose normalization
 
 <p float="left">
-    <img src="pix/80019_norm.png" width="300"/>
-    <img src="pix/4942_norm.png" width="300"/>
+    <img src="pix/densepose-norm.png" width="800"/>
 </p>
 
 # References:
