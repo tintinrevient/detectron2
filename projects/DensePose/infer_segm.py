@@ -646,7 +646,12 @@ def _translate_and_scale_segm(image, segm_id, segm_xy, keypoint, ref_point, scal
     max_y = int(y + h / 2)
 
     if min_x > 0 and min_y > 0:
-        image[min_y:max_y, min_x:max_x, :] = image[min_y:max_y, min_x:max_x, :] * 0.5 + img_bg * 0.5
+
+        img_target = image[min_y:max_y, min_x:max_x, :]
+        cond_bg = img_bg[:,:,3] > 0 # condition for already-drawn segment pixels
+        img_target[cond_bg] = img_bg[cond_bg]
+
+        # image[min_y:max_y, min_x:max_x, :] = image[min_y:max_y, min_x:max_x, :] * 0.5 + img_bg * 0.5
 
     if segm_id == 'Head':
         return scaler
@@ -778,7 +783,6 @@ def draw_segments_xy(segments_xy):
     cv2.circle(image, tuple(norm_mid_lthigh_xy), radius=10, color=(255, 0, 255), thickness=-1)
     cv2.circle(image, tuple(norm_mid_lcalf_xy), radius=10, color=(255, 0, 255), thickness=-1)
 
-    # image = cv2.cvtColor(image, cv2.COLOR_BGR2BGRA)
     cv2.imshow('test', image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
