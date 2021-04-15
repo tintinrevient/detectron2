@@ -82,7 +82,7 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
 ## DensePose normalization
 
 <p float="left">
-    <img src="pix/densepose-norm.png" width="800"/>
+    <img src="pix/densepose-norm.png" width="700"/>
 </p>
 
 # References:
