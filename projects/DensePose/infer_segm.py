@@ -24,6 +24,12 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 
+# window setting
+window_segm = 'segm'
+window_bbox = 'bbox'
+window_norm = 'norm'
+window_stitched_data = 'stitched data'
+
 # setting
 gray_val_scale = 10.625
 cmap = cv2.COLORMAP_PARULA
@@ -37,6 +43,8 @@ keypoints_color = (0, 0, 0)
 densepose_keypoints_dir = os.path.join('output', 'keypoints')
 openpose_keypoints_dir = os.path.join('output', 'data')
 norm_segm_dir = os.path.join('output', 'pix')
+
+fname_vitruve_norm = os.path.join('pix', 'vitruve_norm.png')
 
 # data type
 # keypoints = {key: (x, y, score)}
@@ -609,7 +617,7 @@ def rotate_segments_xy(segm, keypoints):
     return tpose_segments_xy
 
 
-def _translate_and_scale_segm(image, segm_id, segm_xy, keypoint, ref_point, scaler):
+def _translate_and_scale_segm(image, segm_id, segm_xy, keypoint, ref_point, scaler, is_vitruve):
 
     print('Segment ID:', segm_id)
 
@@ -630,12 +638,16 @@ def _translate_and_scale_segm(image, segm_id, segm_xy, keypoint, ref_point, scal
         y = int(y - min_y + margin)
         cv2.circle(img_bg, (x, y), radius=5, color=COARSE_TO_COLOR[segm_id], thickness=-1)
 
-    if segm_id == 'Head' and w > 0:
-        scaler = 200 / w
+    if segm_id == 'Head' and h > 0:
+        if is_vitruve:
+            scaler = 63 / h
+        else:
+            scaler = 300 / h
 
     img_bg = cv2.resize(img_bg, (int(w * scaler), int(h * scaler)), cv2.INTER_LINEAR)
     h, w, _ = img_bg.shape
 
+    # distance between the center point and the left/upper boundaries
     keypoint_x, keypoint_y = ((np.array(keypoint)[0:2] - np.array([min_x, min_y]) + np.array([margin, margin])) * scaler).astype(int)
 
     x, y = ref_point
@@ -657,28 +669,60 @@ def _translate_and_scale_segm(image, segm_id, segm_xy, keypoint, ref_point, scal
         return scaler
 
 
-def draw_segments_xy(segments_xy):
+def draw_segments_xy(segments_xy, is_vitruve=False):
 
-    # normalized image
-    image = np.empty(norm_img_shape, np.uint8)
-    image.fill(255)  # => white (255, 255, 255, 255) = background with non-transparency
+    if is_vitruve:
+        # normalized image = (624, 624, 4)
+        image = cv2.imread(fname_vitruve_norm, 0)
+        image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGRA)
 
-    # [x, y]
-    norm_nose_xy = [1000, 200]
+        # assumption -> default height of head = 63 pixels!
+        # scaler = 63 / actual head height
 
-    norm_mid_torso_xy = [1000, 700]
+        # [x, y]
+        norm_nose_xy = [312, 145]
 
-    norm_mid_rupper_arm_xy = [600, 500]
-    norm_mid_rlower_arm_xy = [300, 500]
-    norm_mid_lupper_arm_xy = [1400, 500]
-    norm_mid_llower_arm_xy = [1700, 500]
+        norm_mid_torso_xy = [312, 290]
 
-    norm_mid_rthigh_xy = [900, 1200]
-    norm_mid_rcalf_xy = [900, 1650]
-    norm_mid_lthigh_xy = [1100, 1200]
-    norm_mid_lcalf_xy = [1100, 1650]
+        norm_mid_rupper_arm_xy = [217, 217]
+        norm_mid_rlower_arm_xy = [148, 217]
+        norm_mid_lupper_arm_xy = [405, 217]
+        norm_mid_llower_arm_xy = [473, 217]
 
-    scaler = None # Assumption!!! Size of head for all people is the same!!!
+        norm_mid_rthigh_xy = [282, 426]
+        norm_mid_rcalf_xy = [282, 542]
+        norm_mid_lthigh_xy = [322, 426]
+        norm_mid_lcalf_xy = [322, 542]
+
+        radius = 2
+
+    else:
+        # normalized image = (2000, 2000, 4)
+        image = np.empty(norm_img_shape, np.uint8)
+        image.fill(255)  # => white (255, 255, 255, 255) = background with non-transparency
+
+        # assumption -> default height of head = 300 pixels!
+        # scaler = 300 / actual head height
+
+        # [x, y]
+        norm_nose_xy = [1000, 200]
+
+        norm_mid_torso_xy = [1000, 700]
+
+        norm_mid_rupper_arm_xy = [600, 500]
+        norm_mid_rlower_arm_xy = [300, 500]
+        norm_mid_lupper_arm_xy = [1400, 500]
+        norm_mid_llower_arm_xy = [1700, 500]
+
+        norm_mid_rthigh_xy = [900, 1200]
+        norm_mid_rcalf_xy = [900, 1650]
+        norm_mid_lthigh_xy = [1100, 1200]
+        norm_mid_lcalf_xy = [1100, 1650]
+
+        radius = 10
+
+    # assumption -> size of head for all people is the same!!!
+    scaler = None
 
     # translate first, scale second!
     # head
@@ -687,7 +731,8 @@ def draw_segments_xy(segments_xy):
                                            segm_id='Head', segm_xy=segments_xy['Head']['segm_xy'],
                                            keypoint=segments_xy['Head']['keypoints']['Nose'],
                                            ref_point=norm_nose_xy,
-                                           scaler=None)
+                                           scaler=None,
+                                           is_vitruve=is_vitruve)
 
     # torso
     if 'Torso' in segments_xy:
@@ -696,7 +741,8 @@ def draw_segments_xy(segments_xy):
                                   segm_xy=segments_xy['Torso']['segm_xy'],
                                   keypoint=segments_xy['Torso']['keypoints']['MidHip'],
                                   ref_point=norm_mid_torso_xy,
-                                  scaler=scaler)
+                                  scaler=scaler,
+                                  is_vitruve=is_vitruve)
 
     # upper limbs
     if 'RUpperArm' in segments_xy:
@@ -705,7 +751,8 @@ def draw_segments_xy(segments_xy):
                                   segm_xy=segments_xy['RUpperArm']['segm_xy'],
                                   keypoint=segments_xy['RUpperArm']['keypoints']['RElbow'],
                                   ref_point=norm_mid_rupper_arm_xy,
-                                  scaler=scaler)
+                                  scaler=scaler,
+                                  is_vitruve=is_vitruve)
 
     if 'RLowerArm' in segments_xy:
         _translate_and_scale_segm(image=image,
@@ -713,7 +760,8 @@ def draw_segments_xy(segments_xy):
                                   segm_xy=segments_xy['RLowerArm']['segm_xy'],
                                   keypoint=segments_xy['RLowerArm']['keypoints']['RWrist'],
                                   ref_point=norm_mid_rlower_arm_xy,
-                                  scaler=scaler)
+                                  scaler=scaler,
+                                  is_vitruve=is_vitruve)
 
     if 'LUpperArm' in segments_xy:
         _translate_and_scale_segm(image=image,
@@ -721,7 +769,8 @@ def draw_segments_xy(segments_xy):
                                   segm_xy=segments_xy['LUpperArm']['segm_xy'],
                                   keypoint=segments_xy['LUpperArm']['keypoints']['LElbow'],
                                   ref_point=norm_mid_lupper_arm_xy,
-                                  scaler=scaler)
+                                  scaler=scaler,
+                                  is_vitruve=is_vitruve)
 
     if 'LLowerArm' in segments_xy:
         _translate_and_scale_segm(image=image,
@@ -729,7 +778,8 @@ def draw_segments_xy(segments_xy):
                                   segm_xy=segments_xy['LLowerArm']['segm_xy'],
                                   keypoint=segments_xy['LLowerArm']['keypoints']['LWrist'],
                                   ref_point=norm_mid_llower_arm_xy,
-                                  scaler=scaler)
+                                  scaler=scaler,
+                                  is_vitruve=is_vitruve)
 
     # lower limbs
     if 'RThigh' in segments_xy:
@@ -738,7 +788,8 @@ def draw_segments_xy(segments_xy):
                                   segm_xy=segments_xy['RThigh']['segm_xy'],
                                   keypoint=segments_xy['RThigh']['keypoints']['RKnee'],
                                   ref_point=norm_mid_rthigh_xy,
-                                  scaler=scaler)
+                                  scaler=scaler,
+                                  is_vitruve=is_vitruve)
 
     if 'RCalf' in segments_xy:
         _translate_and_scale_segm(image=image,
@@ -746,7 +797,8 @@ def draw_segments_xy(segments_xy):
                                   segm_xy=segments_xy['RCalf']['segm_xy'],
                                   keypoint=segments_xy['RCalf']['keypoints']['RAnkle'],
                                   ref_point=norm_mid_rcalf_xy,
-                                  scaler=scaler)
+                                  scaler=scaler,
+                                  is_vitruve=is_vitruve)
 
     if 'LThigh' in segments_xy:
         _translate_and_scale_segm(image=image,
@@ -754,7 +806,8 @@ def draw_segments_xy(segments_xy):
                                   segm_xy=segments_xy['LThigh']['segm_xy'],
                                   keypoint=segments_xy['LThigh']['keypoints']['LKnee'],
                                   ref_point=norm_mid_lthigh_xy,
-                                  scaler=scaler)
+                                  scaler=scaler,
+                                  is_vitruve=is_vitruve)
 
     if 'LCalf' in segments_xy:
         _translate_and_scale_segm(image=image,
@@ -762,26 +815,27 @@ def draw_segments_xy(segments_xy):
                                   segm_xy=segments_xy['LCalf']['segm_xy'],
                                   keypoint=segments_xy['LCalf']['keypoints']['LAnkle'],
                                   ref_point=norm_mid_lcalf_xy,
-                                  scaler=scaler)
+                                  scaler=scaler,
+                                  is_vitruve=is_vitruve)
 
     # draw centers
     # head center
-    cv2.circle(image, tuple(norm_nose_xy), radius=10, color=(255, 0, 255), thickness=-1)
+    cv2.circle(image, tuple(norm_nose_xy), radius=radius, color=(255, 0, 255), thickness=-1)
 
     # torso center
-    cv2.circle(image, tuple(norm_mid_torso_xy), radius=10, color=(255, 0, 255), thickness=-1)
+    cv2.circle(image, tuple(norm_mid_torso_xy), radius=radius, color=(255, 0, 255), thickness=-1)
 
     # upper limbs
-    cv2.circle(image, tuple(norm_mid_rupper_arm_xy), radius=10, color=(255, 0, 255), thickness=-1)
-    cv2.circle(image, tuple(norm_mid_rlower_arm_xy), radius=10, color=(255, 0, 255), thickness=-1)
-    cv2.circle(image, tuple(norm_mid_lupper_arm_xy), radius=10, color=(255, 0, 255), thickness=-1)
-    cv2.circle(image, tuple(norm_mid_llower_arm_xy), radius=10, color=(255, 0, 255), thickness=-1)
+    cv2.circle(image, tuple(norm_mid_rupper_arm_xy), radius=radius, color=(255, 0, 255), thickness=-1)
+    cv2.circle(image, tuple(norm_mid_rlower_arm_xy), radius=radius, color=(255, 0, 255), thickness=-1)
+    cv2.circle(image, tuple(norm_mid_lupper_arm_xy), radius=radius, color=(255, 0, 255), thickness=-1)
+    cv2.circle(image, tuple(norm_mid_llower_arm_xy), radius=radius, color=(255, 0, 255), thickness=-1)
 
     # lower limbs
-    cv2.circle(image, tuple(norm_mid_rthigh_xy), radius=10, color=(255, 0, 255), thickness=-1)
-    cv2.circle(image, tuple(norm_mid_rcalf_xy), radius=10, color=(255, 0, 255), thickness=-1)
-    cv2.circle(image, tuple(norm_mid_lthigh_xy), radius=10, color=(255, 0, 255), thickness=-1)
-    cv2.circle(image, tuple(norm_mid_lcalf_xy), radius=10, color=(255, 0, 255), thickness=-1)
+    cv2.circle(image, tuple(norm_mid_rthigh_xy), radius=radius, color=(255, 0, 255), thickness=-1)
+    cv2.circle(image, tuple(norm_mid_rcalf_xy), radius=radius, color=(255, 0, 255), thickness=-1)
+    cv2.circle(image, tuple(norm_mid_lthigh_xy), radius=radius, color=(255, 0, 255), thickness=-1)
+    cv2.circle(image, tuple(norm_mid_lcalf_xy), radius=radius, color=(255, 0, 255), thickness=-1)
 
     return image
 
@@ -807,7 +861,8 @@ def visualize_norm_segm(image_bg, mask, segm, bbox_xywh, keypoints, infile, show
         # apply cmap
         segm_vis = cv2.applyColorMap(segm_scaled_8u, cmap)
 
-        cv2.imshow('bbox:', segm_vis)
+        cv2.imshow(window_bbox, segm_vis)
+        cv2.setWindowProperty(window_bbox, cv2.WND_PROP_TOPMOST, 1)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
@@ -816,14 +871,15 @@ def visualize_norm_segm(image_bg, mask, segm, bbox_xywh, keypoints, infile, show
     segments_xy = rotate_segments_xy(segm=segm, keypoints=keypoints)
 
     # draw segments in normalized image
-    image = draw_segments_xy(segments_xy=segments_xy)
+    image = draw_segments_xy(segments_xy=segments_xy, is_vitruve=True)
 
     if show:
         outfile = generate_norm_segm_outfile(infile)
         cv2.imwrite(outfile, image)
         print('output', outfile)
 
-        cv2.imshow('norm', image)
+        cv2.imshow(window_norm, image)
+        cv2.setWindowProperty(window_norm, cv2.WND_PROP_TOPMOST, 1)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
     else:
@@ -879,7 +935,8 @@ def stitch_data(results_densepose, boxes_xywh, data_keypoints, image, show):
                     break
 
     if show:
-        cv2.imshow('stitched data', image)
+        cv2.imshow(window_stitched_data, image)
+        cv2.setWindowProperty(window_stitched_data, cv2.WND_PROP_TOPMOST, 1)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
@@ -1010,7 +1067,8 @@ def generate_segm(infile, score_cutoff, show):
     image_vis = visualizer.visualize(im_gray, data)
 
     if show:
-        cv2.imshow('segm', image_vis)
+        cv2.imshow(window_segm, image_vis)
+        cv2.setWindowProperty(window_segm, cv2.WND_PROP_TOPMOST, 1)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
