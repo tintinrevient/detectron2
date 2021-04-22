@@ -85,6 +85,12 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
     <img src="pix/densepose-norm.png" width="700"/>
 </p>
 
+## DensePose on Vitruve
+
+<p float="left">
+    <img src="pix/densepose-vitruve.png" width="350"/>
+</p>
+
 # References:
 * https://www.kaggle.com/changethetuneman/densepose
 * https://github.com/facebookresearch/DensePose/
@@ -96,3 +102,4 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
 * https://github.com/facebookresearch/DensePose/blob/master/notebooks/DensePose-RCNN-Texture-Transfer.ipynb
 * https://smpl.is.tue.mpg.de/en
 * https://pytorch3d.org/tutorials/render_densepose
+* https://en.wikipedia.org/wiki/Artistic_canons_of_body_proportions
