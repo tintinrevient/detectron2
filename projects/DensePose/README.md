@@ -88,7 +88,7 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
 ## DensePose on Vitruve
 
 <p float="left">
-    <img src="pix/densepose-vitruve.png" width="350"/>
+    <img src="pix/densepose-vitruve.png" width="500"/>
 </p>
 
 # References:
