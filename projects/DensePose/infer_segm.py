@@ -1102,11 +1102,12 @@ if __name__ == '__main__':
     # python infer_segm.py --input datasets/modern/Paul\ Gauguin/14206.jpg --output norm
 
     # classical
+    # python infer_segm.py --input datasets/classical/Michelangelo/12758.jpg --output norm
+    # python infer_segm.py --input datasets/classical/Artemisia\ Gentileschi/45093.jpg --output norm
+
     # python infer_segm.py --input datasets/classical/Pierre-Auguste\ Renoir/96672.jpg --output norm
     # python infer_segm.py --input datasets/classical/Pierre-Auguste\ Renoir/90411.jpg --output norm
     # python infer_segm.py --input datasets/classical/Pierre-Auguste\ Renoir/79467.jpg --output norm
-    # python infer_segm.py --input datasets/classical/Michelangelo/12758.jpg --output norm
-    # python infer_segm.py --input datasets/classical/Artemisia\ Gentileschi/45093.jpg --output norm
     # python infer_segm.py --input datasets/classical/El\ Greco/4651.jpg --output norm
     # python infer_segm.py --input datasets/classical/Pierre-Paul\ Prud\'hon/48529.jpg --output norm
 
