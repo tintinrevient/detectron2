@@ -619,7 +619,7 @@ def rotate_segments_xy(segm, keypoints):
 
 def _translate_and_scale_segm(image, segm_id, segm_xy, keypoint, ref_point, scaler, is_vitruve):
 
-    print('Segment ID:', segm_id)
+    # print('Segment ID:', segm_id)
 
     min_x, min_y = np.min(segm_xy, axis=0).astype(int)
     max_x, max_y = np.max(segm_xy, axis=0).astype(int)
