@@ -6,6 +6,7 @@ import pycocotools.mask as mask_util
 import infer_segm
 from densepose.structures import DensePoseDataRelative
 
+
 # image_w_and_h = 2000
 image_w_and_h = 624
 
@@ -59,7 +60,54 @@ def _translate_keypoints_to_bbox(keypoints, bbox_xywh):
     return keypoints
 
 
-def generate_norm_segm_from_coco(image_id, show, image_mean):
+def _show_bbox(segm):
+
+    # show bbox
+    segm_scaled = segm.astype(np.float32) * 15
+    segm_scaled_8u = segm_scaled.clip(0, 255).astype(np.uint8)
+
+    # apply cmap
+    segm_vis = cv2.applyColorMap(segm_scaled_8u, cv2.COLORMAP_PARULA)
+
+    window_bbox = 'bbox'
+    cv2.imshow(window_bbox, segm_vis)
+    cv2.setWindowProperty(window_bbox, cv2.WND_PROP_TOPMOST, 1)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
+def _show_full_image(segm, annotation, im_output):
+
+    # bbox
+    bbox_xywh = np.array(annotation["bbox"]).astype(int)
+    x1, y1, x2, y2 = bbox_xywh[0], bbox_xywh[1], bbox_xywh[0] + bbox_xywh[2], bbox_xywh[1] + bbox_xywh[3]
+
+    x2 = min([x2, im_output.shape[1]])
+    y2 = min([y2, im_output.shape[0]])
+
+    # show original gray image
+    mask_bool = np.tile((segm == 0)[:, :, np.newaxis], [1, 1, 3])
+
+    # replace the visualized mask image with I_vis.
+    mask_vis = cv2.applyColorMap((segm * 15).astype(np.uint8), cv2.COLORMAP_PARULA)[:, :, :]
+    mask_vis[mask_bool] = im_output[y1:y2, x1:x2, :][mask_bool]
+    im_output[y1:y2, x1:x2, :] = im_output[y1:y2, x1:x2, :] * 0.3 + mask_vis * 0.7
+
+    # draw keypoints
+    keypoints = np.array(annotation['keypoints']).astype(int)
+
+    for x, y, score in list(zip(keypoints[0::3], keypoints[1::3], keypoints[2::3])):
+        if score > 0:
+            cv2.circle(im_output, (x, y), radius=3, color=(255, 0, 255), thickness=-1)
+
+    window_input = 'input'
+    cv2.imshow(window_input, im_output)
+    cv2.setWindowProperty(window_input, cv2.WND_PROP_TOPMOST, 1)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
+def generate_norm_segm_from_coco(dp_coco, image_id, image_mean, show):
 
     print('image_id:', image_id)
 
@@ -76,12 +124,16 @@ def generate_norm_segm_from_coco(image_id, show, image_mean):
     im_output = im_gray.copy()
 
     # imposed image for all people in one image!
+    # sum of images
     image_sum = np.empty((image_w_and_h, image_w_and_h, 4), np.float32)
     image_sum.fill(0)
-    image_deviation_sum = np.empty((image_w_and_h, image_w_and_h, 4), np.float32)
-    image_deviation_sum.fill(0)
+    # count of images
     count = 0
     is_updated = False
+
+    # deviation of images
+    image_deviation_sum = np.empty((image_w_and_h, image_w_and_h, 4), np.float32)
+    image_deviation_sum.fill(0)
 
     # iterate through all the people in one image
     for annotation in annotations:
@@ -101,7 +153,8 @@ def generate_norm_segm_from_coco(image_id, show, image_mean):
         if not _is_valid(keypoints=keypoints):
             continue
 
-        if ('dp_masks' in annotation.keys()):  # If we have densepose annotation for this ann,
+        # if we have dense_pose annotation for this annotation
+        if ('dp_masks' in annotation.keys()):
 
             mask = _get_dp_mask(annotation['dp_masks'])
 
@@ -113,33 +166,11 @@ def generate_norm_segm_from_coco(image_id, show, image_mean):
             segm = cv2.resize(mask, (int(x2 - x1), int(y2 - y1)), interpolation=cv2.INTER_NEAREST)
 
             if show:
-                # show original gray image
-                mask_bool = np.tile((segm == 0)[:, :, np.newaxis], [1, 1, 3])
-
-                #  replace the visualized mask image with I_vis.
-                mask_vis = cv2.applyColorMap((segm * 15).astype(np.uint8), cv2.COLORMAP_PARULA)[:, :, :]
-                mask_vis[mask_bool] = im_output[y1:y2, x1:x2, :][mask_bool]
-                im_output[y1:y2, x1:x2, :] = im_output[y1:y2, x1:x2, :] * 0.3 + mask_vis * 0.7
-
-                window_input = 'input'
-                cv2.imshow(window_input, im_output)
-                cv2.setWindowProperty(window_input, cv2.WND_PROP_TOPMOST, 1)
-                cv2.waitKey(0)
-                cv2.destroyAllWindows()
+                # show the original gray image
+                _show_full_image(segm, annotation, im_output)
 
                 # show bbox
-                segm_scaled = segm.astype(np.float32) * 15
-                segm_scaled_8u = segm_scaled.clip(0, 255).astype(np.uint8)
-
-                # apply cmap
-                segm_vis = cv2.applyColorMap(segm_scaled_8u, cv2.COLORMAP_PARULA)
-
-                window_bbox = 'bbox'
-                cv2.imshow(window_bbox, segm_vis)
-                cv2.setWindowProperty(window_bbox, cv2.WND_PROP_TOPMOST, 1)
-                cv2.waitKey(0)
-                cv2.destroyAllWindows()
-
+                # _show_bbox(segm)
 
         # visualize normalized pose
         # rotate to t-pose
@@ -155,10 +186,12 @@ def generate_norm_segm_from_coco(image_id, show, image_mean):
             cv2.waitKey(0)
             cv2.destroyAllWindows()
 
-        count += 1
+        # update the sum and count of images
         image_sum = np.array(image) + np.array(image_sum)
+        count += 1
         is_updated = True
 
+        # update the deviation of images
         if image_mean is not None:
             image_deviation_sum = ((np.array(image) - np.array(image_mean)) ** 2) + np.array(image_deviation_sum)
 
@@ -168,103 +201,154 @@ def generate_norm_segm_from_coco(image_id, show, image_mean):
         return None, 0, None
 
 
-if __name__ == '__main__':
-
-    coco_folder = os.path.join('datasets', 'coco')
-
-    # caption
-    caption_coco = COCO(os.path.join(coco_folder, 'annotations', 'captions_train2014.json'))
-    caption_img_ids = caption_coco.getImgIds()
-
-    # dense_pose
-    # dp_coco = COCO(os.path.join(coco_folder, 'annotations', 'densepose_minival2014.json'))
-    dp_coco = COCO(os.path.join(coco_folder, 'annotations', 'densepose_train2014.json'))
-    dp_img_ids = dp_coco.getImgIds()
-
-    # common images
-    common_img_ids = list(set(caption_img_ids) & set(dp_img_ids))
-
-    print('Number of caption images:', len(caption_img_ids))
-    print('Number of dense_pose images:', len(dp_img_ids))
-    print('Number of common images:', len(common_img_ids))
-
-    man_img_ids = []
-    woman_img_ids = []
-
-    for img_id in common_img_ids:
-
-        annotation_ids = caption_coco.getAnnIds(imgIds=img_id)
-        annotations = caption_coco.loadAnns(annotation_ids)
-
-        for annotation in annotations:
-            # image id
-            image_id = annotation['image_id']
-            # caption = a list of lower words
-            caption = annotation['caption'].lower().split()
-
-            if 'man' in caption and 'woman' not in caption:
-                man_img_ids.append(image_id)
-                break
-            elif 'woman' in caption and 'man' not in caption:
-                woman_img_ids.append(image_id)
-                break
-
-    print('Number of images of man:', len(man_img_ids))
-    print('Number of images of woman:', len(woman_img_ids))
-    common_people_img_ids = list(set(man_img_ids) & set(woman_img_ids))
-    print('Number of images of man and woman:', len(common_people_img_ids))
-
-    # bugs
-    # dp_img_ids = [558114]
-
-    # test
-    # dp_img_ids = [437239, 438304, 438774, 438862, 303713, 295138]
-    dp_img_ids = [303713, 295138]
+def visualize_mean(dp_coco, image_ids, show):
 
     # calculate the mean of the COCO poses
     image_mean = np.empty((image_w_and_h, image_w_and_h, 4), np.float32)
     image_mean.fill(0)
-    image_std = np.empty((image_w_and_h, image_w_and_h, 4), np.float32)
-    image_std.fill(0)
+
+    # total count
     count = 0
 
-    for img_id in man_img_ids:
-
+    for image_id in image_ids:
         try:
-            image_sum, image_count, _ = generate_norm_segm_from_coco(image_id=img_id, show=False, image_mean=None)
+            image_sum, image_count, _ = generate_norm_segm_from_coco(dp_coco=dp_coco, image_id=image_id, image_mean=None, show=show)
             if image_count > 0:
                 count += image_count
                 image_mean = np.array(image_sum) + np.array(image_mean)
         except:
             continue
 
-    image_mean = (np.array(image_mean) / count).astype(int)
-    image_mean_norm = cv2.normalize(image_mean, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+    if count > 0:
+        image_mean = (np.array(image_mean) / count).astype(int)
+        image_mean_norm = cv2.normalize(image_mean, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
 
-    window_mean = 'image_mean'
-    cv2.imshow(window_mean, image_mean_norm)
-    cv2.setWindowProperty(window_mean, cv2.WND_PROP_TOPMOST, 1)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+        window_mean = 'image_mean'
+        cv2.imshow(window_mean, image_mean_norm)
+        cv2.setWindowProperty(window_mean, cv2.WND_PROP_TOPMOST, 1)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+        return image_mean_norm
+
+
+def visualize_std(dp_coco, image_ids, image_mean, show):
 
     # calculate the standard deviation of the COCO poses
-    # count = 0
-    # for img_id in img_ids:
-    #     try:
-    #         _, image_count, image_deviation_sum = generate_norm_segm_from_coco(image_id=img_id, show=False, image_mean=image_mean_norm)
+    image_std = np.empty((image_w_and_h, image_w_and_h, 4), np.float32)
+    image_std.fill(0)
+
+    # total count
+    count = 0
+
+    for image_id in image_ids:
+        try:
+            _, image_count, image_deviation_sum = generate_norm_segm_from_coco(dp_coco=dp_coco, image_id=image_id, image_mean=image_mean, show=show)
+
+            if image_count > 0:
+                count += image_count
+                image_std = np.array(image_deviation_sum) + np.array(image_std)
+        except:
+            continue
+
+    if count > 1:
+        image_std = np.sqrt((np.array(image_std) / (count - 1))).astype(int)
+        image_std_norm = cv2.normalize(image_std, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        image_std_norm = cv2.cvtColor(image_std_norm, cv2.COLOR_RGBA2GRAY)
+
+        window_std = 'image_std'
+        cv2.imshow(window_std, image_std_norm)
+        cv2.setWindowProperty(window_std, cv2.WND_PROP_TOPMOST, 1)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+
+def filter_by_caption(dp_coco, caption_coco, yes_word_list, no_word_list):
+
+    # dense_pose image ids
+    dp_img_ids = dp_coco.getImgIds()
+    # caption image ids
+    caption_img_ids = caption_coco.getImgIds()
+
+    print('Number of dp_images:', len(dp_img_ids))
+    print('Number of caption_images:', len(caption_img_ids))
+
+    # common image ids between dense_pose and caption images
+    common_img_ids = list(set(dp_img_ids) & set(caption_img_ids))
+
+    print('Number of common images:', len(common_img_ids))
+
+    # convert word lists to lower-case
+    yes_word_list = [word.lower() for word in yes_word_list]
+    no_word_list = [word.lower() for word in no_word_list]
+
+    yes_word_size = len(yes_word_list)
+    no_word_size = len(no_word_list)
+
+    filtered_img_ids = []
+
+    for img_id in common_img_ids:
+
+        annotation_ids = caption_coco.getAnnIds(imgIds=img_id)
+        annotations = caption_coco.loadAnns(annotation_ids)
+
+        # one image has more than ONE annotations!
+        match_count = 0
+        for annotation in annotations:
+            # caption = a list of lower-case words
+            caption = annotation['caption'].lower().split()
+
+            # check for words, which must be ALL included
+            filtered_yes_word_list = list(set(yes_word_list) & set(caption))
+            # check for words, which must NOT be included
+            filtered_no_word_list = list(set(no_word_list) & set(caption))
+
+            if len(filtered_yes_word_list) == yes_word_size and len(filtered_no_word_list) == 0:
+                match_count += 1
+
+        # condition: if ALL annotations are matched!
+        if match_count == len(annotations):
+            filtered_img_ids.append(img_id)
+
+    return filtered_img_ids
+
+
+if __name__ == '__main__':
+
+    coco_folder = os.path.join('datasets', 'coco')
+
+    # caption
+    # caption_coco = COCO(os.path.join(coco_folder, 'annotations', 'captions_train2014.json'))
+
+    # dense_pose
+    # dp_coco = COCO(os.path.join(coco_folder, 'annotations', 'densepose_minival2014.json'))
+    # dp_coco = COCO(os.path.join(coco_folder, 'annotations', 'densepose_train2014.json'))
+
+    # images of only men
+    # man_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['man'], no_word_list=['woman'])
+    # print('Number of images with only men:', len(man_list_img_ids))
     #
-    #         if count is not None:
-    #             count += image_count
-    #             image_std = np.array(image_deviation_sum) + np.array(image_std)
-    #     except:
-    #         continue
+    # # images of only women
+    # woman_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['woman'], no_word_list=['man'])
+    # print('Number of images with only women:', len(woman_list_img_ids))
     #
-    # image_std = np.sqrt((np.array(image_std) / (count-1))).astype(int)
-    # image_std_norm = cv2.normalize(image_std, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-    # image_std_norm = cv2.cvtColor(image_std_norm, cv2.COLOR_RGBA2GRAY)
+    # common_people_img_ids = list(set(man_list_img_ids) & set(woman_list_img_ids))
+    # print('Number of images with men and women:', len(common_people_img_ids))
     #
-    # window_std = 'image_std'
-    # cv2.imshow(window_std, image_std_norm)
-    # cv2.setWindowProperty(window_std, cv2.WND_PROP_TOPMOST, 1)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
+    # print('men:', man_list_img_ids[0], man_list_img_ids[1], man_list_img_ids[2])
+    # print('women:', woman_list_img_ids[0], woman_list_img_ids[1], woman_list_img_ids[2])
+
+    # bugs
+    dp_img_ids = [558114]
+
+    # test
+    # dp_img_ids = [437239, 438304, 438774, 438862, 303713, 295138]
+    # dp_img_ids = [303713, 295138]
+    # dp_coco = COCO(os.path.join(coco_folder, 'annotations', 'densepose_minival2014.json'))
+    # dp_img_ids = dp_coco.getImgIds()[:10]
+
+    # visualize the mean of images
+    image_mean = visualize_mean(dp_coco=COCO(os.path.join(coco_folder, 'annotations', 'densepose_minival2014.json')), image_ids=dp_img_ids, show=True)
+
+    # visualize the standard deviation of images
+    # visualize_std(dp_coco=COCO(os.path.join(coco_folder, 'annotations', 'densepose_minival2014.json')), image_ids=dp_img_ids, image_mean=image_mean, show=True)
