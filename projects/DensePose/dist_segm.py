@@ -344,9 +344,6 @@ if __name__ == '__main__':
     common_people_img_ids = list(set(man_list_img_ids) & set(woman_list_img_ids))
     print('Number of images with men and women:', len(common_people_img_ids))
 
-    print('men:', man_list_img_ids[0], man_list_img_ids[1], man_list_img_ids[2])
-    print('women:', woman_list_img_ids[0], woman_list_img_ids[1], woman_list_img_ids[2])
-
     # bugs
     # dp_img_ids = [558114]
 
