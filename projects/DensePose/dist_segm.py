@@ -109,10 +109,8 @@ def _show_full_image(segm, annotation, im_output):
 
 def generate_norm_segm_from_coco(dp_coco, image_id, image_mean, show):
 
-    print('image_id:', image_id)
-
     entry = dp_coco.loadImgs(image_id)[0]
-    image_fpath = os.path.join(coco_folder, 'val2014', entry['file_name'])
+    image_fpath = os.path.join(coco_folder, 'train2014', entry['file_name'])
     print('image_fpath:', image_fpath)
 
     annotation_ids = dp_coco.getAnnIds(imgIds=entry['id'])
@@ -318,28 +316,28 @@ if __name__ == '__main__':
     coco_folder = os.path.join('datasets', 'coco')
 
     # caption
-    # caption_coco = COCO(os.path.join(coco_folder, 'annotations', 'captions_train2014.json'))
+    caption_coco = COCO(os.path.join(coco_folder, 'annotations', 'captions_train2014.json'))
 
     # dense_pose
     # dp_coco = COCO(os.path.join(coco_folder, 'annotations', 'densepose_minival2014.json'))
-    # dp_coco = COCO(os.path.join(coco_folder, 'annotations', 'densepose_train2014.json'))
+    dp_coco = COCO(os.path.join(coco_folder, 'annotations', 'densepose_train2014.json'))
 
     # images of only men
-    # man_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['man'], no_word_list=['woman'])
-    # print('Number of images with only men:', len(man_list_img_ids))
-    #
-    # # images of only women
-    # woman_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['woman'], no_word_list=['man'])
-    # print('Number of images with only women:', len(woman_list_img_ids))
-    #
-    # common_people_img_ids = list(set(man_list_img_ids) & set(woman_list_img_ids))
-    # print('Number of images with men and women:', len(common_people_img_ids))
-    #
-    # print('men:', man_list_img_ids[0], man_list_img_ids[1], man_list_img_ids[2])
-    # print('women:', woman_list_img_ids[0], woman_list_img_ids[1], woman_list_img_ids[2])
+    man_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['man'], no_word_list=['woman'])
+    print('Number of images with only men:', len(man_list_img_ids))
+
+    # images of only women
+    woman_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['woman'], no_word_list=['man'])
+    print('Number of images with only women:', len(woman_list_img_ids))
+
+    common_people_img_ids = list(set(man_list_img_ids) & set(woman_list_img_ids))
+    print('Number of images with men and women:', len(common_people_img_ids))
+
+    print('men:', man_list_img_ids[0], man_list_img_ids[1], man_list_img_ids[2])
+    print('women:', woman_list_img_ids[0], woman_list_img_ids[1], woman_list_img_ids[2])
 
     # bugs
-    dp_img_ids = [558114]
+    # dp_img_ids = [558114]
 
     # test
     # dp_img_ids = [437239, 438304, 438774, 438862, 303713, 295138]
@@ -348,7 +346,7 @@ if __name__ == '__main__':
     # dp_img_ids = dp_coco.getImgIds()[:10]
 
     # visualize the mean of images
-    image_mean = visualize_mean(dp_coco=COCO(os.path.join(coco_folder, 'annotations', 'densepose_minival2014.json')), image_ids=dp_img_ids, show=True)
+    image_mean = visualize_mean(dp_coco=dp_coco, image_ids=man_list_img_ids[0:50], show=False)
 
     # visualize the standard deviation of images
     # visualize_std(dp_coco=COCO(os.path.join(coco_folder, 'annotations', 'densepose_minival2014.json')), image_ids=dp_img_ids, image_mean=image_mean, show=True)
