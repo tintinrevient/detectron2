@@ -199,7 +199,7 @@ def generate_norm_segm_from_coco(dp_coco, image_id, image_mean, show):
         return None, 0, None
 
 
-def visualize_mean(dp_coco, image_ids, show):
+def visualize_mean(dp_coco, image_ids, output_fn, show):
 
     # calculate the mean of the COCO poses
     image_mean = np.empty((image_w_and_h, image_w_and_h, 4), np.float32)
@@ -221,16 +221,20 @@ def visualize_mean(dp_coco, image_ids, show):
         image_mean = (np.array(image_mean) / count).astype(int)
         image_mean_norm = cv2.normalize(image_mean, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
 
+        # show the image
         window_mean = 'image_mean'
         cv2.imshow(window_mean, image_mean_norm)
         cv2.setWindowProperty(window_mean, cv2.WND_PROP_TOPMOST, 1)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
+        # save the image
+        cv2.imwrite(output_fn, image_mean_norm)
+
         return image_mean_norm
 
 
-def visualize_std(dp_coco, image_ids, image_mean, show):
+def visualize_std(dp_coco, image_ids, image_mean, output_fn, show):
 
     # calculate the standard deviation of the COCO poses
     image_std = np.empty((image_w_and_h, image_w_and_h, 4), np.float32)
@@ -254,11 +258,15 @@ def visualize_std(dp_coco, image_ids, image_mean, show):
         image_std_norm = cv2.normalize(image_std, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
         image_std_norm = cv2.cvtColor(image_std_norm, cv2.COLOR_RGBA2GRAY)
 
+        # show the image
         window_std = 'image_std'
         cv2.imshow(window_std, image_std_norm)
         cv2.setWindowProperty(window_std, cv2.WND_PROP_TOPMOST, 1)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
+
+        # save the image
+        cv2.imwrite(output_fn, image_std_norm)
 
 
 def filter_by_caption(dp_coco, caption_coco, yes_word_list, no_word_list):
@@ -346,7 +354,8 @@ if __name__ == '__main__':
     # dp_img_ids = dp_coco.getImgIds()[:10]
 
     # visualize the mean of images
-    image_mean = visualize_mean(dp_coco=dp_coco, image_ids=man_list_img_ids[0:50], show=False)
+    image_mean_output_fn = os.path.join('pix', 'man_vitruve.png')
+    image_mean = visualize_mean(dp_coco=dp_coco, image_ids=man_list_img_ids[0:500], output_fn=image_mean_output_fn, show=False)
 
     # visualize the standard deviation of images
     # visualize_std(dp_coco=COCO(os.path.join(coco_folder, 'annotations', 'densepose_minival2014.json')), image_ids=dp_img_ids, image_mean=image_mean, show=True)
