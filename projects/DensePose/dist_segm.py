@@ -110,7 +110,10 @@ def _show_full_image(segm, annotation, im_output):
 def generate_norm_segm_from_coco(dp_coco, image_id, image_mean, show):
 
     entry = dp_coco.loadImgs(image_id)[0]
-    image_fpath = os.path.join(coco_folder, 'train2014', entry['file_name'])
+
+    dataset_name = entry['file_name'][entry['file_name'].find('_')+1:entry['file_name'].rfind('_')]
+    image_fpath = os.path.join(coco_folder, dataset_name, entry['file_name'])
+
     print('image_fpath:', image_fpath)
 
     annotation_ids = dp_coco.getAnnIds(imgIds=entry['id'])
