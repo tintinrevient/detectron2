@@ -21,13 +21,14 @@ def _is_valid(keypoints):
 
     # check the scores for each main keypoint, which MUST exist!
     # main_keypoints = BODY BOX
-    main_keypoints = ['Nose', 'Neck', 'RShoulder', 'LShoulder', 'RHip', 'LHip', 'MidHip']
+    main_keypoints = ['Nose', 'Neck', 'RShoulder', 'LShoulder', 'RHip', 'LHip', 'MidHip',
+                      'RElbow', 'LElbow', 'RWrist', 'LWrist', 'RKnee', 'LKnee', 'RAnkle', 'LAnkle']
 
     # filter the main keypoints by score > 0
     filtered_keypoints = [key for key, value in keypoints.items() if key in main_keypoints and value[2] > 0]
-    print('Number of valid keypoints (must be equal to 7):', len(filtered_keypoints))
+    print('Number of valid keypoints (must be equal to 15):', len(filtered_keypoints))
 
-    if len(filtered_keypoints) != 7:
+    if len(filtered_keypoints) != 15:
         return False
     else:
         return True
@@ -76,7 +77,12 @@ def _show_bbox(segm):
     cv2.destroyAllWindows()
 
 
-def _show_full_image(segm, annotation, im_output):
+def _show_full_image(segm, annotation, im_output, caption_coco):
+
+    # print annotations
+    caption_annotation_ids = caption_coco.getAnnIds(imgIds=annotation['image_id'])
+    caption_annotations = caption_coco.loadAnns(caption_annotation_ids)
+    print([caption_annotation['caption'] for caption_annotation in caption_annotations])
 
     # bbox
     bbox_xywh = np.array(annotation["bbox"]).astype(int)
@@ -107,7 +113,7 @@ def _show_full_image(segm, annotation, im_output):
     cv2.destroyAllWindows()
 
 
-def generate_norm_segm_from_coco(dp_coco, image_id, image_mean, show):
+def generate_norm_segm_from_coco(dp_coco, caption_coco, image_id, image_mean, show, is_vitruve):
 
     entry = dp_coco.loadImgs(image_id)[0]
 
@@ -116,8 +122,8 @@ def generate_norm_segm_from_coco(dp_coco, image_id, image_mean, show):
 
     print('image_fpath:', image_fpath)
 
-    annotation_ids = dp_coco.getAnnIds(imgIds=entry['id'])
-    annotations = dp_coco.loadAnns(annotation_ids)
+    dp_annotation_ids = dp_coco.getAnnIds(imgIds=entry['id'])
+    dp_annotations = dp_coco.loadAnns(dp_annotation_ids)
 
     im_gray = cv2.imread(image_fpath, cv2.IMREAD_GRAYSCALE)
     im_gray = np.tile(im_gray[:, :, np.newaxis], [1, 1, 3])
@@ -137,27 +143,27 @@ def generate_norm_segm_from_coco(dp_coco, image_id, image_mean, show):
     image_deviation_sum.fill(0)
 
     # iterate through all the people in one image
-    for annotation in annotations:
+    for dp_annotation in dp_annotations:
 
-        is_valid, _ = DensePoseDataRelative.validate_annotation(annotation)
+        is_valid, _ = DensePoseDataRelative.validate_annotation(dp_annotation)
 
         if not is_valid:
             continue
 
         # bbox
-        bbox_xywh = np.array(annotation["bbox"]).astype(int)
+        bbox_xywh = np.array(dp_annotation["bbox"]).astype(int)
 
         # keypoints
-        keypoints = np.array(annotation['keypoints']).astype(int)
+        keypoints = np.array(dp_annotation['keypoints']).astype(int)
         keypoints = _translate_keypoints_to_bbox(keypoints=keypoints, bbox_xywh=bbox_xywh)
 
         if not _is_valid(keypoints=keypoints):
             continue
 
         # if we have dense_pose annotation for this annotation
-        if ('dp_masks' in annotation.keys()):
+        if ('dp_masks' in dp_annotation.keys()):
 
-            mask = _get_dp_mask(annotation['dp_masks'])
+            mask = _get_dp_mask(dp_annotation['dp_masks'])
 
             x1, y1, x2, y2 = bbox_xywh[0], bbox_xywh[1], bbox_xywh[0] + bbox_xywh[2], bbox_xywh[1] + bbox_xywh[3]
 
@@ -168,7 +174,8 @@ def generate_norm_segm_from_coco(dp_coco, image_id, image_mean, show):
 
             if show:
                 # show the original gray image
-                _show_full_image(segm, annotation, im_output)
+                dp_annotation['image_id'] = entry['id']
+                _show_full_image(segm, dp_annotation, im_output, caption_coco)
 
                 # show bbox
                 # _show_bbox(segm)
@@ -178,7 +185,7 @@ def generate_norm_segm_from_coco(dp_coco, image_id, image_mean, show):
         segments_xy = infer_segm.rotate_segments_xy(segm=segm, keypoints=keypoints)
 
         # draw segments in normalized image
-        image = infer_segm.draw_segments_xy(segments_xy=segments_xy, is_vitruve=True)
+        image = infer_segm.draw_segments_xy(segments_xy=segments_xy, is_vitruve=is_vitruve)
 
         if show:
             window_norm = 'norm'
@@ -202,7 +209,7 @@ def generate_norm_segm_from_coco(dp_coco, image_id, image_mean, show):
         return None, 0, None
 
 
-def visualize_mean(dp_coco, image_ids, output_fn, show):
+def visualize_mean(dp_coco, caption_coco, image_ids, output_fn, show, is_vitruve):
 
     # calculate the mean of the COCO poses
     image_mean = np.empty((image_w_and_h, image_w_and_h, 4), np.float32)
@@ -213,7 +220,7 @@ def visualize_mean(dp_coco, image_ids, output_fn, show):
 
     for image_id in image_ids:
         try:
-            image_sum, image_count, _ = generate_norm_segm_from_coco(dp_coco=dp_coco, image_id=image_id, image_mean=None, show=show)
+            image_sum, image_count, _ = generate_norm_segm_from_coco(dp_coco=dp_coco, caption_coco=caption_coco, image_id=image_id, image_mean=None, show=show, is_vitruve=is_vitruve)
             if image_count > 0:
                 count += image_count
                 image_mean = np.array(image_sum) + np.array(image_mean)
@@ -221,7 +228,10 @@ def visualize_mean(dp_coco, image_ids, output_fn, show):
             continue
 
     if count > 0:
+        print('Number of people:', count)
         image_mean = (np.array(image_mean) / count).astype(int)
+        # image_mean[..., :] = np.clip(image_mean[..., :], 0, 255)
+        # image_mean_norm = np.array(image_mean, dtype=np.uint8)
         image_mean_norm = cv2.normalize(image_mean, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
 
         # show the image
@@ -237,7 +247,7 @@ def visualize_mean(dp_coco, image_ids, output_fn, show):
         return image_mean_norm
 
 
-def visualize_std(dp_coco, image_ids, image_mean, output_fn, show):
+def visualize_std(dp_coco, caption_coco, image_ids, image_mean, output_fn, show, is_vitruve):
 
     # calculate the standard deviation of the COCO poses
     image_std = np.empty((image_w_and_h, image_w_and_h, 4), np.float32)
@@ -248,7 +258,7 @@ def visualize_std(dp_coco, image_ids, image_mean, output_fn, show):
 
     for image_id in image_ids:
         try:
-            _, image_count, image_deviation_sum = generate_norm_segm_from_coco(dp_coco=dp_coco, image_id=image_id, image_mean=image_mean, show=show)
+            _, image_count, image_deviation_sum = generate_norm_segm_from_coco(dp_coco=dp_coco, caption_coco=caption_coco, image_id=image_id, image_mean=image_mean, show=show, is_vitruve=is_vitruve)
 
             if image_count > 0:
                 count += image_count
@@ -257,6 +267,7 @@ def visualize_std(dp_coco, image_ids, image_mean, output_fn, show):
             continue
 
     if count > 1:
+        print('Number of people:', count)
         image_std = np.sqrt((np.array(image_std) / (count - 1))).astype(int)
         image_std_norm = cv2.normalize(image_std, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
         image_std_norm = cv2.cvtColor(image_std_norm, cv2.COLOR_RGBA2GRAY)
@@ -292,7 +303,6 @@ def filter_by_caption(dp_coco, caption_coco, yes_word_list, no_word_list):
     no_word_list = [word.lower() for word in no_word_list]
 
     yes_word_size = len(yes_word_list)
-    no_word_size = len(no_word_list)
 
     filtered_img_ids = []
 
@@ -309,15 +319,19 @@ def filter_by_caption(dp_coco, caption_coco, yes_word_list, no_word_list):
 
             # check for words, which must be ALL included
             filtered_yes_word_list = list(set(yes_word_list) & set(caption))
+
             # check for words, which must NOT be included
             filtered_no_word_list = list(set(no_word_list) & set(caption))
 
+            # strict match
             if len(filtered_yes_word_list) == yes_word_size and len(filtered_no_word_list) == 0:
                 match_count += 1
 
         # condition: if ALL annotations are matched!
+        # match_count > 0
+        # match_count == len(annotations)
         if match_count == len(annotations):
-            filtered_img_ids.append(img_id)
+                filtered_img_ids.append(img_id)
 
     return filtered_img_ids
 
@@ -348,14 +362,16 @@ if __name__ == '__main__':
     # dp_img_ids = [558114]
 
     # test
-    # dp_img_ids = [437239, 438304, 438774, 438862, 303713, 295138]
-    # dp_img_ids = [303713, 295138]
-    # dp_coco = COCO(os.path.join(coco_folder, 'annotations', 'densepose_minival2014.json'))
-    # dp_img_ids = dp_coco.getImgIds()[:10]
+    dp_img_ids = [15151, 18956]
 
     # visualize the mean of images
-    image_mean_output_fn = os.path.join('pix', 'man_vitruve.png')
-    image_mean = visualize_mean(dp_coco=dp_coco, image_ids=man_list_img_ids[0:500], output_fn=image_mean_output_fn, show=False)
+    image_mean_output_fn = os.path.join('pix', 'woman_vitruve_mean.png')
+    image_mean = visualize_mean(dp_coco=dp_coco, caption_coco=caption_coco,
+                                image_ids=woman_list_img_ids[0:50], output_fn=image_mean_output_fn,
+                                show=False, is_vitruve=False)
 
     # visualize the standard deviation of images
-    # visualize_std(dp_coco=COCO(os.path.join(coco_folder, 'annotations', 'densepose_minival2014.json')), image_ids=dp_img_ids, image_mean=image_mean, show=True)
+    # image_std_output_fn = os.path.join('pix', 'man_vitruve_std.png')
+    # visualize_std(dp_coco=dp_coco, caption_coco=caption_coco,
+    #               image_ids=dp_img_ids, image_mean=image_mean, output_fn=image_std_output_fn,
+    #               show=True, is_vitruve=True)

@@ -617,7 +617,7 @@ def rotate_segments_xy(segm, keypoints):
     return tpose_segments_xy
 
 
-def _translate_and_scale_segm(image, segm_id, segm_xy, keypoint, ref_point, scaler, is_vitruve):
+def _translate_and_scale_segm_to_convex(image, segm_id, segm_xy, keypoint, ref_point, scaler):
 
     # print('Segment ID:', segm_id)
 
@@ -633,19 +633,28 @@ def _translate_and_scale_segm(image, segm_id, segm_xy, keypoint, ref_point, scal
     img_bg.fill(255)
     img_bg[:, :, 3] = 0  # alpha channel = 0 -> transparent
 
-    for x, y in segm_xy.astype(int):
-        x = int(x - min_x + margin)
-        y = int(y - min_y + margin)
-        cv2.circle(img_bg, (x, y), radius=5, color=COARSE_TO_COLOR[segm_id], thickness=-1)
+    # fill the segment with the segment color
+    contours = [[int(x - min_x + margin), int(y - min_y + margin)] for x, y in segm_xy.astype(int)]
+    contours = np.array(contours, np.int32)
+    cv2.fillConvexPoly(img_bg,  cv2.convexHull(contours), color=COARSE_TO_COLOR[segm_id])
 
     if segm_id == 'Head' and h > 0:
-        if is_vitruve:
-            scaler = 63 / h
-        else:
-            scaler = 300 / h
+        scaler = 63 / h
 
     img_bg = cv2.resize(img_bg, (int(w * scaler), int(h * scaler)), cv2.INTER_LINEAR)
     h, w, _ = img_bg.shape
+
+    # dilate within contour - option 1
+    # img_bg_gray = cv2.cvtColor(img_bg, cv2.COLOR_BGRA2GRAY)
+    # ret, thresh = cv2.threshold(img_bg_gray, 127, 255, 0)
+    # contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # cv2.drawContours(img_bg, contours, -1, (0, 255, 0), 3)
+
+    # dilate within contour - option 2
+    # img_bg[img_bg[:, :, 3] == 0] = (0, 0, 0, 0)
+    # kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (10, 10))
+    # img_bg = cv2.morphologyEx(img_bg, cv2.MORPH_CLOSE, kernel)
+    # img_bg[img_bg[:, :, 3] == 0] = (255, 255, 255, 0)
 
     # distance between the center point and the left/upper boundaries
     keypoint_x, keypoint_y = ((np.array(keypoint)[0:2] - np.array([min_x, min_y]) + np.array([margin, margin])) * scaler).astype(int)
@@ -658,6 +667,47 @@ def _translate_and_scale_segm(image, segm_id, segm_xy, keypoint, ref_point, scal
 
     cond_bg = img_bg[:, :, 3] > 0  # condition for already-drawn segment pixels
     image[min_y:max_y, min_x:max_x, :][cond_bg] = img_bg[cond_bg]
+
+    # test each segment
+    # cv2.circle(img_bg, (keypoint_x, keypoint_y), radius=5,color=(255, 255, 0), thickness=-1)
+    # cv2.imshow('test', img_bg)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+
+    if segm_id == 'Head':
+        return scaler
+
+
+def _translate_and_scale_segm_to_rect(image, segm_id, segm_xy, keypoint, ref_point, scaler):
+
+    # print('Segment ID:', segm_id)
+
+    min_x, min_y = np.min(segm_xy, axis=0).astype(int)
+    max_x, max_y = np.max(segm_xy, axis=0).astype(int)
+
+    w = int(max_x - min_x)
+    h = int(max_y - min_y)
+
+    img_bg = np.empty((h, w, 4), np.uint8)
+    img_bg.fill(255)
+    img_bg[:, :] = COARSE_TO_COLOR[segm_id]
+
+    if segm_id == 'Head' and h > 0:
+        scaler = 63 / h
+
+    img_bg = cv2.resize(img_bg, (int(w * scaler), int(h * scaler)), cv2.INTER_LINEAR)
+    h, w, _ = img_bg.shape
+
+    # distance between the center point and the left/upper boundaries
+    keypoint_x, keypoint_y = ((np.array(keypoint)[0:2] - np.array([min_x, min_y])) * scaler).astype(int)
+
+    x, y = ref_point
+    min_x = int(x - keypoint_x)
+    max_x = int(x + w - keypoint_x)
+    min_y = int(y - keypoint_y)
+    max_y = int(y + h - keypoint_y)
+
+    image[min_y:max_y, min_x:max_x, :] = img_bg
 
     # test each segment
     # cv2.circle(img_bg, (keypoint_x, keypoint_y), radius=5,color=(255, 255, 0), thickness=-1)
@@ -697,126 +747,122 @@ def draw_segments_xy(segments_xy, is_vitruve=False):
         radius = 2
 
     else:
-        # normalized image = (2000, 2000, 4)
-        image = np.empty(norm_img_shape, np.uint8)
+        # normalized image = (624, 624, 4)
+        image = np.empty((624, 624, 4), np.uint8)
         image.fill(255)  # => white (255, 255, 255, 255) = background with non-transparency
 
-        # assumption -> default height of head = 300 pixels!
-        # scaler = 300 / actual head height
+        # assumption -> default height of head = 63 pixels!
+        # scaler = 63 / actual head height
 
         # [x, y]
-        norm_nose_xy = [1000, 200]
+        norm_nose_xy = [312, 145]
 
-        norm_mid_torso_xy = [1000, 700]
+        norm_mid_torso_xy = [312, 290]
 
-        norm_mid_rupper_arm_xy = [600, 500]
-        norm_mid_rlower_arm_xy = [300, 500]
-        norm_mid_lupper_arm_xy = [1400, 500]
-        norm_mid_llower_arm_xy = [1700, 500]
+        norm_mid_rupper_arm_xy = [212, 217]
+        norm_mid_rlower_arm_xy = [112, 217]
+        norm_mid_lupper_arm_xy = [412, 217]
+        norm_mid_llower_arm_xy = [512, 217]
 
-        norm_mid_rthigh_xy = [900, 1200]
-        norm_mid_rcalf_xy = [900, 1650]
-        norm_mid_lthigh_xy = [1100, 1200]
-        norm_mid_lcalf_xy = [1100, 1650]
+        norm_mid_rthigh_xy = [262, 426]
+        norm_mid_rcalf_xy = [262, 552]
+        norm_mid_lthigh_xy = [362, 426]
+        norm_mid_lcalf_xy = [362, 552]
 
-        radius = 10
+        radius = 2
+
 
     # assumption -> size of head for all people is the same!!!
     scaler = None
 
+    dispatcher = {
+        'segm_function': _translate_and_scale_segm_to_rect,
+        # 'segm_function': _translate_and_scale_segm_to_convex
+    }
+
     # translate first, scale second!
     # head
     if 'Head' in segments_xy:
-        scaler = _translate_and_scale_segm(image=image,
-                                           segm_id='Head', segm_xy=segments_xy['Head']['segm_xy'],
-                                           keypoint=segments_xy['Head']['keypoints']['Nose'],
-                                           ref_point=norm_nose_xy,
-                                           scaler=None,
-                                           is_vitruve=is_vitruve)
+        scaler = dispatcher['segm_function'](image=image,
+                                             segm_id='Head', segm_xy=segments_xy['Head']['segm_xy'],
+                                             keypoint=segments_xy['Head']['keypoints']['Nose'],
+                                             ref_point=norm_nose_xy,
+                                             scaler=None)
 
     # torso
     if 'Torso' in segments_xy:
-        _translate_and_scale_segm(image=image,
-                                  segm_id='Torso',
-                                  segm_xy=segments_xy['Torso']['segm_xy'],
-                                  keypoint=segments_xy['Torso']['keypoints']['MidHip'],
-                                  ref_point=norm_mid_torso_xy,
-                                  scaler=scaler,
-                                  is_vitruve=is_vitruve)
+        dispatcher['segm_function'](image=image,
+                                    segm_id='Torso',
+                                    segm_xy=segments_xy['Torso']['segm_xy'],
+                                    keypoint=segments_xy['Torso']['keypoints']['MidHip'],
+                                    ref_point=norm_mid_torso_xy,
+                                    scaler=scaler)
 
     # upper limbs
     if 'RUpperArm' in segments_xy:
-        _translate_and_scale_segm(image=image,
-                                  segm_id='RUpperArm',
-                                  segm_xy=segments_xy['RUpperArm']['segm_xy'],
-                                  keypoint=segments_xy['RUpperArm']['keypoints']['RElbow'],
-                                  ref_point=norm_mid_rupper_arm_xy,
-                                  scaler=scaler,
-                                  is_vitruve=is_vitruve)
+        dispatcher['segm_function'](image=image,
+                                    segm_id='RUpperArm',
+                                    segm_xy=segments_xy['RUpperArm']['segm_xy'],
+                                    keypoint=segments_xy['RUpperArm']['keypoints']['RElbow'],
+                                    ref_point=norm_mid_rupper_arm_xy,
+                                    scaler=scaler)
 
     if 'RLowerArm' in segments_xy:
-        _translate_and_scale_segm(image=image,
-                                  segm_id='RLowerArm',
-                                  segm_xy=segments_xy['RLowerArm']['segm_xy'],
-                                  keypoint=segments_xy['RLowerArm']['keypoints']['RWrist'],
-                                  ref_point=norm_mid_rlower_arm_xy,
-                                  scaler=scaler,
-                                  is_vitruve=is_vitruve)
+        dispatcher['segm_function'](image=image,
+                                    segm_id='RLowerArm',
+                                    segm_xy=segments_xy['RLowerArm']['segm_xy'],
+                                    keypoint=segments_xy['RLowerArm']['keypoints']['RWrist'],
+                                    ref_point=norm_mid_rlower_arm_xy,
+                                    scaler=scaler)
 
     if 'LUpperArm' in segments_xy:
-        _translate_and_scale_segm(image=image,
-                                  segm_id='LUpperArm',
-                                  segm_xy=segments_xy['LUpperArm']['segm_xy'],
-                                  keypoint=segments_xy['LUpperArm']['keypoints']['LElbow'],
-                                  ref_point=norm_mid_lupper_arm_xy,
-                                  scaler=scaler,
-                                  is_vitruve=is_vitruve)
+        dispatcher['segm_function'](image=image,
+                                    segm_id='LUpperArm',
+                                    segm_xy=segments_xy['LUpperArm']['segm_xy'],
+                                    keypoint=segments_xy['LUpperArm']['keypoints']['LElbow'],
+                                    ref_point=norm_mid_lupper_arm_xy,
+                                    scaler=scaler)
 
     if 'LLowerArm' in segments_xy:
-        _translate_and_scale_segm(image=image,
-                                  segm_id='LLowerArm',
-                                  segm_xy=segments_xy['LLowerArm']['segm_xy'],
-                                  keypoint=segments_xy['LLowerArm']['keypoints']['LWrist'],
-                                  ref_point=norm_mid_llower_arm_xy,
-                                  scaler=scaler,
-                                  is_vitruve=is_vitruve)
+        dispatcher['segm_function'](image=image,
+                                    segm_id='LLowerArm',
+                                    segm_xy=segments_xy['LLowerArm']['segm_xy'],
+                                    keypoint=segments_xy['LLowerArm']['keypoints']['LWrist'],
+                                    ref_point=norm_mid_llower_arm_xy,
+                                    scaler=scaler)
 
     # lower limbs
     if 'RThigh' in segments_xy:
-        _translate_and_scale_segm(image=image,
-                                  segm_id='RThigh',
-                                  segm_xy=segments_xy['RThigh']['segm_xy'],
-                                  keypoint=segments_xy['RThigh']['keypoints']['RKnee'],
-                                  ref_point=norm_mid_rthigh_xy,
-                                  scaler=scaler,
-                                  is_vitruve=is_vitruve)
+        dispatcher['segm_function'](image=image,
+                                    segm_id='RThigh',
+                                    segm_xy=segments_xy['RThigh']['segm_xy'],
+                                    keypoint=segments_xy['RThigh']['keypoints']['RKnee'],
+                                    ref_point=norm_mid_rthigh_xy,
+                                    scaler=scaler)
 
     if 'RCalf' in segments_xy:
-        _translate_and_scale_segm(image=image,
-                                  segm_id='RCalf',
-                                  segm_xy=segments_xy['RCalf']['segm_xy'],
-                                  keypoint=segments_xy['RCalf']['keypoints']['RAnkle'],
-                                  ref_point=norm_mid_rcalf_xy,
-                                  scaler=scaler,
-                                  is_vitruve=is_vitruve)
+        dispatcher['segm_function'](image=image,
+                                    segm_id='RCalf',
+                                    segm_xy=segments_xy['RCalf']['segm_xy'],
+                                    keypoint=segments_xy['RCalf']['keypoints']['RAnkle'],
+                                    ref_point=norm_mid_rcalf_xy,
+                                    scaler=scaler)
 
     if 'LThigh' in segments_xy:
-        _translate_and_scale_segm(image=image,
-                                  segm_id='LThigh',
-                                  segm_xy=segments_xy['LThigh']['segm_xy'],
-                                  keypoint=segments_xy['LThigh']['keypoints']['LKnee'],
-                                  ref_point=norm_mid_lthigh_xy,
-                                  scaler=scaler,
-                                  is_vitruve=is_vitruve)
+        dispatcher['segm_function'](image=image,
+                                    segm_id='LThigh',
+                                    segm_xy=segments_xy['LThigh']['segm_xy'],
+                                    keypoint=segments_xy['LThigh']['keypoints']['LKnee'],
+                                    ref_point=norm_mid_lthigh_xy,
+                                    scaler=scaler)
 
     if 'LCalf' in segments_xy:
-        _translate_and_scale_segm(image=image,
-                                  segm_id='LCalf',
-                                  segm_xy=segments_xy['LCalf']['segm_xy'],
-                                  keypoint=segments_xy['LCalf']['keypoints']['LAnkle'],
-                                  ref_point=norm_mid_lcalf_xy,
-                                  scaler=scaler,
-                                  is_vitruve=is_vitruve)
+        dispatcher['segm_function'](image=image,
+                                    segm_id='LCalf',
+                                    segm_xy=segments_xy['LCalf']['segm_xy'],
+                                    keypoint=segments_xy['LCalf']['keypoints']['LAnkle'],
+                                    ref_point=norm_mid_lcalf_xy,
+                                    scaler=scaler)
 
     # draw centers
     # head center
