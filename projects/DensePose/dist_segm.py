@@ -352,14 +352,14 @@ def filter_by_caption(dp_coco, caption_coco, yes_word_list, no_word_list):
     return filtered_img_ids
 
 
-def visualize_dist(dp_db_name, caption_db_name, dp_img_category, dp_img_range, is_vitruve, is_rect):
+def visualize_dist(dp_ds_name, caption_ds_name, dp_img_category, dp_img_range, is_vitruve, is_rect):
 
     # caption
-    caption_coco = COCO(os.path.join(coco_folder, 'annotations', caption_db_name))
+    caption_coco = COCO(os.path.join(coco_folder, 'annotations', caption_ds_name))
 
     # dense_pose
     # dp_coco = COCO(os.path.join(coco_folder, 'annotations', 'densepose_minival2014.json'))
-    dp_coco = COCO(os.path.join(coco_folder, 'annotations', dp_db_name))
+    dp_coco = COCO(os.path.join(coco_folder, 'annotations', dp_ds_name))
 
     # images of only men
     man_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['man'],
@@ -412,9 +412,10 @@ def visualize_dist(dp_db_name, caption_db_name, dp_img_category, dp_img_range, i
 
 if __name__ == '__main__':
 
+    # dataset setting
     coco_folder = os.path.join('datasets', 'coco')
-    dp_db_name = 'densepose_train2014.json'
-    caption_db_name = 'captions_train2014.json'
+    dp_ds_name = 'densepose_train2014.json'
+    caption_ds_name = 'captions_train2014.json'
 
     # visualize the mean and std of all the poses
     dp_img_category = 'woman'
@@ -422,6 +423,6 @@ if __name__ == '__main__':
     is_vitruve = False
     is_rect = False
 
-    visualize_dist(dp_db_name=dp_db_name, caption_db_name=caption_db_name,
+    visualize_dist(dp_ds_name=dp_ds_name, caption_ds_name=caption_ds_name,
                    dp_img_category=dp_img_category, dp_img_range=dp_img_range,
                    is_vitruve=is_vitruve, is_rect=is_rect)
