@@ -732,20 +732,34 @@ def draw_segments_xy(segments_xy, is_vitruve=False, is_rect=True):
         # scaler = 63 / actual head height
 
     # common settings
+    # coordinates [x, y] coming from dist_segm.draw_contour_on_vitruve()
+    # nose_y 146
+    # torso_y 281
+    # rupper_arm_x 218
+    # rlower_arm_x 149
+    # lupper_arm_x 405
+    # llower_arm_x 474
+    # thigh_y 427
+    # calf_y 544
+
     # [x, y]
-    norm_nose_xy = [312, 145]
+    mid_x = 312
+    arm_line_y = 217
+    right_leg_x = 282
+    left_leg_x = 322
 
-    norm_mid_torso_xy = [312, 290]
+    norm_nose_xy = [mid_x, 146]
+    norm_mid_torso_xy = [mid_x, 281]
 
-    norm_mid_rupper_arm_xy = [217, 217]
-    norm_mid_rlower_arm_xy = [148, 217]
-    norm_mid_lupper_arm_xy = [405, 217]
-    norm_mid_llower_arm_xy = [473, 217]
+    norm_mid_rupper_arm_xy = [218, arm_line_y]
+    norm_mid_rlower_arm_xy = [149, arm_line_y]
+    norm_mid_lupper_arm_xy = [405, arm_line_y]
+    norm_mid_llower_arm_xy = [474, arm_line_y]
 
-    norm_mid_rthigh_xy = [282, 426]
-    norm_mid_rcalf_xy = [282, 542]
-    norm_mid_lthigh_xy = [322, 426]
-    norm_mid_lcalf_xy = [322, 542]
+    norm_mid_rthigh_xy = [right_leg_x, 427]
+    norm_mid_lthigh_xy = [left_leg_x, 427]
+    norm_mid_rcalf_xy = [right_leg_x, 544]
+    norm_mid_lcalf_xy = [left_leg_x, 544]
 
     # mid-point radius for keypoints
     radius = 2
@@ -1166,7 +1180,7 @@ if __name__ == '__main__':
         if args.output == 'segm':
             generate_segm(infile=args.input, score_cutoff=0.95, show=True)
         elif args.output == 'norm':
-            generate_norm_segm(infile=args.input, score_cutoff=0.95, is_vitruve=False, is_rect=True, show=True)
+            generate_norm_segm(infile=args.input, score_cutoff=0.95, is_vitruve=True, is_rect=False, show=True)
 
     elif os.path.isdir(args.input):
         for path in Path(args.input).rglob('*.jpg'):
