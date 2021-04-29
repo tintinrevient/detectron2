@@ -746,7 +746,7 @@ def draw_segments_xy(segments_xy, is_vitruve=False, is_rect=True):
     mid_x = 312
     arm_line_y = 217
     right_leg_x = 282
-    left_leg_x = 322
+    left_leg_x = 330
 
     norm_nose_xy = [mid_x, 146]
     norm_mid_torso_xy = [mid_x, 281]

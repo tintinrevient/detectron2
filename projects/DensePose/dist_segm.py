@@ -299,59 +299,6 @@ def visualize_std(dp_coco, caption_coco, image_ids, image_mean, output_fn, is_vi
         cv2.imwrite(output_fn, image_std_norm)
 
 
-def filter_by_caption(dp_coco, caption_coco, yes_word_list, no_word_list):
-
-    # dense_pose image ids
-    dp_img_ids = dp_coco.getImgIds()
-    # caption image ids
-    caption_img_ids = caption_coco.getImgIds()
-
-    print('Number of dp_images:', len(dp_img_ids))
-    print('Number of caption_images:', len(caption_img_ids))
-
-    # common image ids between dense_pose and caption images
-    common_img_ids = list(set(dp_img_ids) & set(caption_img_ids))
-
-    print('Number of common images:', len(common_img_ids))
-
-    # convert word lists to lower-case
-    yes_word_list = [word.lower() for word in yes_word_list]
-    no_word_list = [word.lower() for word in no_word_list]
-
-    yes_word_size = len(yes_word_list)
-
-    filtered_img_ids = []
-
-    for img_id in common_img_ids:
-
-        annotation_ids = caption_coco.getAnnIds(imgIds=img_id)
-        annotations = caption_coco.loadAnns(annotation_ids)
-
-        # one image has more than ONE annotations!
-        match_count = 0
-        for annotation in annotations:
-            # caption = a list of lower-case words
-            caption = annotation['caption'].lower().split()
-
-            # check for words, which must be ALL included
-            filtered_yes_word_list = list(set(yes_word_list) & set(caption))
-
-            # check for words, which must NOT be included
-            filtered_no_word_list = list(set(no_word_list) & set(caption))
-
-            # strict match
-            if len(filtered_yes_word_list) == yes_word_size and len(filtered_no_word_list) == 0:
-                match_count += 1
-
-        # condition: if ALL annotations are matched!
-        # match_count > 0
-        # match_count == len(annotations)
-        if match_count == len(annotations):
-                filtered_img_ids.append(img_id)
-
-    return filtered_img_ids
-
-
 def visualize_dist(dp_ds_name, caption_ds_name, dp_img_category, dp_img_range, is_vitruve, is_rect):
 
     # caption
@@ -410,6 +357,253 @@ def visualize_dist(dp_ds_name, caption_ds_name, dp_img_category, dp_img_range, i
                   is_vitruve=is_vitruve, is_rect=is_rect, show=False)
 
 
+def filter_by_caption(dp_coco, caption_coco, yes_word_list, no_word_list):
+
+    # dense_pose image ids
+    dp_img_ids = dp_coco.getImgIds()
+    # caption image ids
+    caption_img_ids = caption_coco.getImgIds()
+
+    print('Number of dp_images:', len(dp_img_ids))
+    print('Number of caption_images:', len(caption_img_ids))
+
+    # common image ids between dense_pose and caption images
+    common_img_ids = list(set(dp_img_ids) & set(caption_img_ids))
+
+    print('Number of common images:', len(common_img_ids))
+
+    # convert word lists to lower-case
+    yes_word_list = [word.lower() for word in yes_word_list]
+    no_word_list = [word.lower() for word in no_word_list]
+
+    yes_word_size = len(yes_word_list)
+
+    filtered_img_ids = []
+
+    for img_id in common_img_ids:
+
+        annotation_ids = caption_coco.getAnnIds(imgIds=img_id)
+        annotations = caption_coco.loadAnns(annotation_ids)
+
+        # one image has more than ONE annotations!
+        match_count = 0
+        for annotation in annotations:
+            # caption = a list of lower-case words
+            caption = annotation['caption'].lower().split()
+
+            # check for words, which must be ALL included
+            filtered_yes_word_list = list(set(yes_word_list) & set(caption))
+
+            # check for words, which must NOT be included
+            filtered_no_word_list = list(set(no_word_list) & set(caption))
+
+            # strict match
+            if len(filtered_yes_word_list) == yes_word_size and len(filtered_no_word_list) == 0:
+                match_count += 1
+
+        # condition: if ALL annotations are matched!
+        # match_count > 0
+        # match_count == len(annotations)
+        if match_count == len(annotations):
+                filtered_img_ids.append(img_id)
+
+    return filtered_img_ids
+
+
+def extract_contour_on_vitruve():
+
+    # output the image
+    fname_vitruve_contour = os.path.join('pix', 'vitruve_contour.png')
+
+    # read the image
+    fname_vitruve_norm = os.path.join('pix', 'vitruve_norm.png')
+
+    image = cv2.imread(fname_vitruve_norm, 0)
+    image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGRA)
+
+    # drawing setting
+    radius_keypoint = 3
+    radius_midpoint = 3
+    thickness_contour = 1
+
+    color_keypoint = (0, 255, 0)
+    color_midpoint = (255, 0, 255)
+    color_contour = (255, 0, 255)
+
+    color_line = (0, 255, 255)
+
+    # height of the man
+    height = 500
+    head_top_y = 115
+    mid_x = 312
+
+    arm_line_y = 217
+    arm_half_width = 15
+    arm_line_upper_y = int(arm_line_y - arm_half_width)
+    arm_line_lower_y = int(arm_line_y + arm_half_width)
+
+    right_leg_x = 282
+    left_leg_x = 330
+    leg_half_width = 20
+
+    right_leg_line_left_x = int(right_leg_x - leg_half_width)
+    right_leg_line_right_x = int(right_leg_x + leg_half_width)
+    left_leg_line_left_x = int(left_leg_x - leg_half_width)
+    left_leg_line_right_x = int(left_leg_x + leg_half_width)
+
+    ankle_margin_y = 17
+    torso_margin_y = 10
+
+    # line along the height
+    feet_bottom_y = int(head_top_y + height)
+    cv2.line(image, (mid_x, head_top_y), (mid_x, feet_bottom_y), color=color_line, thickness=1)
+
+    # line along the arm
+    right_arm_x = int(mid_x - height/2)
+    left_arm_x = int(mid_x + height/2)
+    cv2.line(image, (right_arm_x, arm_line_y), (left_arm_x, arm_line_y), color=color_line, thickness=1)
+
+    # line along the top of the head
+    cv2.line(image, (right_arm_x, head_top_y), (left_arm_x, head_top_y), color=color_line, thickness=1)
+
+    # line along the bottom of the feet
+    cv2.line(image, (right_arm_x, feet_bottom_y), (left_arm_x, feet_bottom_y), color=color_line, thickness=1)
+
+    # line along the chin
+    chin_y = int(head_top_y + height/8)
+    cv2.line(image, (right_arm_x, chin_y), (left_arm_x, chin_y), color=color_line, thickness=1)
+
+    # centroid of head
+    nose_y = int((head_top_y + chin_y)/2)
+    cv2.circle(image, (mid_x, nose_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
+
+    # keypoint of neck
+    neck_y = int(head_top_y + height/6)
+    cv2.circle(image, (mid_x, neck_y), radius=radius_keypoint, color=color_keypoint, thickness=-1)
+
+    # keypoint of midhip
+    midhip_y = int(feet_bottom_y - height/2)
+    cv2.circle(image, (mid_x, midhip_y), radius=radius_keypoint, color=color_keypoint, thickness=-1)
+
+    # keypoint of knees
+    knee_y = int(midhip_y + height/4)
+    cv2.circle(image, (mid_x, knee_y), radius=radius_keypoint, color=color_keypoint, thickness=-1)
+
+    # keypoint of ankles
+    ankle_y = feet_bottom_y - ankle_margin_y
+    cv2.circle(image, (mid_x, ankle_y), radius=radius_keypoint, color=color_keypoint, thickness=-1)
+
+    # midpoint of torso
+    mid_torso_y = int((midhip_y + neck_y)/2)
+    cv2.circle(image, (mid_x, mid_torso_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
+
+    # midpoint of thighs
+    mid_thigh_y = int((midhip_y + knee_y)/2)
+    cv2.circle(image, (right_leg_x, mid_thigh_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
+    cv2.circle(image, (left_leg_x, mid_thigh_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
+
+    # midpoint of calves
+    mid_calf_y = int((knee_y + ankle_y)/2)
+    cv2.circle(image, (right_leg_x, mid_calf_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
+    cv2.circle(image, (left_leg_x, mid_calf_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
+
+    # keypoint of wrists
+    rwrist_x = int(right_arm_x + height/10)
+    cv2.circle(image, (rwrist_x, arm_line_y), radius=radius_keypoint, color=color_keypoint, thickness=-1)
+
+    lwrist_x = int(left_arm_x - height/10)
+    cv2.circle(image, (lwrist_x, arm_line_y), radius=radius_keypoint, color=color_keypoint, thickness=-1)
+
+    # keypoint of elbows
+    relb_x = int(right_arm_x + height/4)
+    cv2.circle(image, (relb_x, arm_line_y), radius=radius_keypoint, color=color_keypoint, thickness=-1)
+
+    lelb_x = int(left_arm_x - height/4)
+    cv2.circle(image, (lelb_x, arm_line_y), radius=radius_keypoint, color=color_keypoint, thickness=-1)
+
+    # keypoint of shoulders = armpits
+    rsho_x = int(right_arm_x + height*3/8)
+    cv2.circle(image, (rsho_x, arm_line_y), radius=radius_keypoint, color=color_keypoint, thickness=-1)
+
+    lsho_x = int(left_arm_x - height * 3 / 8)
+    cv2.circle(image, (lsho_x, arm_line_y), radius=radius_keypoint, color=color_keypoint, thickness=-1)
+
+    # midpoint of arms
+    mid_rlower_arm_x = int((rwrist_x + relb_x)/2)
+    mid_rupper_arm_x = int((relb_x + rsho_x)/2)
+    mid_llower_arm_x = int((lwrist_x + lelb_x)/2)
+    mid_lupper_arm_x = int((lelb_x + lsho_x)/2)
+
+    cv2.circle(image, (mid_rlower_arm_x, arm_line_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
+    cv2.circle(image, (mid_rupper_arm_x, arm_line_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
+    cv2.circle(image, (mid_llower_arm_x, arm_line_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
+    cv2.circle(image, (mid_lupper_arm_x, arm_line_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
+
+    print('nose_y', nose_y)
+    print('torso_y', mid_torso_y)
+    print('rupper_arm_x', mid_rupper_arm_x)
+    print('rlower_arm_x', mid_rlower_arm_x)
+    print('lupper_arm_x', mid_lupper_arm_x)
+    print('llower_arm_x', mid_llower_arm_x)
+    print('thigh_y', mid_thigh_y)
+    print('calf_y', mid_calf_y)
+
+    # white image
+    image = np.empty((624, 624, 4), np.uint8)
+    image.fill(255)
+
+    # contour of head
+    head_radius = int(chin_y - nose_y)
+    cv2.circle(image, (mid_x, nose_y), radius=head_radius, color=color_contour, thickness=thickness_contour)
+
+    # contour of torso
+    cv2.rectangle(image, (int(rsho_x + torso_margin_y), neck_y), (int(lsho_x - torso_margin_y), midhip_y), color=color_contour, thickness=thickness_contour)
+
+    # contour of arms
+    cv2.rectangle(image, (rwrist_x, arm_line_upper_y), (relb_x, arm_line_lower_y), color=color_contour, thickness=thickness_contour)
+    cv2.rectangle(image, (relb_x, arm_line_upper_y), (rsho_x, arm_line_lower_y), color=color_contour, thickness=thickness_contour)
+    cv2.rectangle(image, (lwrist_x, arm_line_upper_y), (lelb_x, arm_line_lower_y), color=color_contour, thickness=thickness_contour)
+    cv2.rectangle(image, (lelb_x, arm_line_upper_y), (lsho_x, arm_line_lower_y), color=color_contour, thickness=thickness_contour)
+
+    # contour of legs
+    cv2.rectangle(image, (right_leg_line_left_x, midhip_y), (right_leg_line_right_x, knee_y), color=color_contour, thickness=thickness_contour)
+    cv2.rectangle(image, (right_leg_line_left_x, knee_y), (right_leg_line_right_x, ankle_y), color=color_contour, thickness=thickness_contour)
+    cv2.rectangle(image, (left_leg_line_left_x, midhip_y), (left_leg_line_right_x, knee_y), color=color_contour, thickness=thickness_contour)
+    cv2.rectangle(image, (left_leg_line_left_x, knee_y), (left_leg_line_right_x, ankle_y), color=color_contour, thickness=thickness_contour)
+
+    winname = 'vitruve'
+    cv2.imshow(winname, image)
+    cv2.setWindowProperty(winname, cv2.WND_PROP_TOPMOST, 1)
+    cv2.waitKey()
+    cv2.destroyAllWindows()
+
+    cv2.imwrite(fname_vitruve_contour, image)
+
+
+def impose_dist_on_vitruve(fname_dist):
+
+    # output
+    fname_output = '{}_bounded.png'.format(fname_dist[:fname_dist.rfind('.')])
+
+    # read the contour of vitruve
+    fname_vitruve_contour = os.path.join('pix', 'vitruve_contour.png')
+    image_vitruve_contour = cv2.imread(fname_vitruve_contour)
+
+    # read the distribution of the poses
+    image_dist = cv2.imread(fname_dist)
+
+    # overlay
+    added_image = cv2.addWeighted(image_vitruve_contour, 0.1, image_dist, 0.9, 0)
+
+    winname = 'imposed dist'
+    cv2.imshow(winname, added_image)
+    cv2.setWindowProperty(winname, cv2.WND_PROP_TOPMOST, 1)
+    cv2.waitKey()
+    cv2.destroyAllWindows()
+
+    cv2.imwrite(fname_output, added_image)
+
+
 if __name__ == '__main__':
 
     # dataset setting
@@ -418,11 +612,21 @@ if __name__ == '__main__':
     caption_ds_name = 'captions_train2014.json'
 
     # visualize the mean and std of all the poses
-    dp_img_category = 'woman'
+    dp_img_category = 'man'
     dp_img_range = slice(0, None)
     is_vitruve = False
     is_rect = False
 
-    visualize_dist(dp_ds_name=dp_ds_name, caption_ds_name=caption_ds_name,
-                   dp_img_category=dp_img_category, dp_img_range=dp_img_range,
-                   is_vitruve=is_vitruve, is_rect=is_rect)
+    # visualize_dist(dp_ds_name=dp_ds_name, caption_ds_name=caption_ds_name,
+    #                dp_img_category=dp_img_category, dp_img_range=dp_img_range,
+    #                is_vitruve=is_vitruve, is_rect=is_rect)
+
+
+    # superimpose the distribution on the contour of vitruve
+    fname_dist = os.path.join('pix', '{}_vitruve_mean_{}.png'.format(dp_img_category, 'convex'))
+    impose_dist_on_vitruve(fname_dist)
+
+
+    # used only for ONCE to generate the contour and midpoints for the vitruve canon!
+    # extract the contour from vitruve
+    # extract_contour_on_vitruve()
