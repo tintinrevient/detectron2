@@ -434,6 +434,8 @@ def extract_contour_on_vitruve():
 
     # height of the man
     height = 500
+
+    # default setting
     head_top_y = 115
     mid_x = 312
 
@@ -454,6 +456,7 @@ def extract_contour_on_vitruve():
     ankle_margin_y = 17
     torso_margin_y = 10
 
+    # lines
     # line along the height
     feet_bottom_y = int(head_top_y + height)
     cv2.line(image, (mid_x, head_top_y), (mid_x, feet_bottom_y), color=color_line, thickness=1)
@@ -473,10 +476,7 @@ def extract_contour_on_vitruve():
     chin_y = int(head_top_y + height/8)
     cv2.line(image, (right_arm_x, chin_y), (left_arm_x, chin_y), color=color_line, thickness=1)
 
-    # centroid of head
-    nose_y = int((head_top_y + chin_y)/2)
-    cv2.circle(image, (mid_x, nose_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
-
+    # keypoints
     # keypoint of neck
     neck_y = int(head_top_y + height/6)
     cv2.circle(image, (mid_x, neck_y), radius=radius_keypoint, color=color_keypoint, thickness=-1)
@@ -492,20 +492,6 @@ def extract_contour_on_vitruve():
     # keypoint of ankles
     ankle_y = feet_bottom_y - ankle_margin_y
     cv2.circle(image, (mid_x, ankle_y), radius=radius_keypoint, color=color_keypoint, thickness=-1)
-
-    # midpoint of torso
-    mid_torso_y = int((midhip_y + neck_y)/2)
-    cv2.circle(image, (mid_x, mid_torso_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
-
-    # midpoint of thighs
-    mid_thigh_y = int((midhip_y + knee_y)/2)
-    cv2.circle(image, (right_leg_x, mid_thigh_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
-    cv2.circle(image, (left_leg_x, mid_thigh_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
-
-    # midpoint of calves
-    mid_calf_y = int((knee_y + ankle_y)/2)
-    cv2.circle(image, (right_leg_x, mid_calf_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
-    cv2.circle(image, (left_leg_x, mid_calf_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
 
     # keypoint of wrists
     rwrist_x = int(right_arm_x + height/10)
@@ -527,6 +513,25 @@ def extract_contour_on_vitruve():
 
     lsho_x = int(left_arm_x - height * 3 / 8)
     cv2.circle(image, (lsho_x, arm_line_y), radius=radius_keypoint, color=color_keypoint, thickness=-1)
+
+    # midpoints
+    # centroid of head
+    nose_y = int((head_top_y + chin_y) / 2)
+    cv2.circle(image, (mid_x, nose_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
+
+    # midpoint of torso
+    mid_torso_y = int((midhip_y + neck_y) / 2)
+    cv2.circle(image, (mid_x, mid_torso_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
+
+    # midpoint of thighs
+    mid_thigh_y = int((midhip_y + knee_y) / 2)
+    cv2.circle(image, (right_leg_x, mid_thigh_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
+    cv2.circle(image, (left_leg_x, mid_thigh_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
+
+    # midpoint of calves
+    mid_calf_y = int((knee_y + ankle_y) / 2)
+    cv2.circle(image, (right_leg_x, mid_calf_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
+    cv2.circle(image, (left_leg_x, mid_calf_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
 
     # midpoint of arms
     mid_rlower_arm_x = int((rwrist_x + relb_x)/2)
