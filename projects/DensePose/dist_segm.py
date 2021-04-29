@@ -113,7 +113,7 @@ def _show_full_image(segm, annotation, im_output, caption_coco):
     cv2.destroyAllWindows()
 
 
-def generate_norm_segm_from_coco(dp_coco, caption_coco, image_id, image_mean, show, is_vitruve):
+def generate_norm_segm_from_coco(dp_coco, caption_coco, image_id, image_mean, is_vitruve, is_rect, show):
 
     entry = dp_coco.loadImgs(image_id)[0]
 
@@ -139,7 +139,7 @@ def generate_norm_segm_from_coco(dp_coco, caption_coco, image_id, image_mean, sh
     is_updated = False
 
     # deviation of images
-    image_deviation_sum = np.empty((image_w_and_h, image_w_and_h, 4), np.float32)
+    image_deviation_sum = np.empty((image_w_and_h, image_w_and_h), np.float32)
     image_deviation_sum.fill(0)
 
     # iterate through all the people in one image
@@ -180,12 +180,12 @@ def generate_norm_segm_from_coco(dp_coco, caption_coco, image_id, image_mean, sh
                 # show bbox
                 # _show_bbox(segm)
 
-        # visualize normalized pose
+        # visualize normalized pose - per person
         # rotate to t-pose
         segments_xy = infer_segm.rotate_segments_xy(segm=segm, keypoints=keypoints)
 
         # draw segments in normalized image
-        image = infer_segm.draw_segments_xy(segments_xy=segments_xy, is_vitruve=is_vitruve)
+        image = infer_segm.draw_segments_xy(segments_xy=segments_xy, is_vitruve=is_vitruve, is_rect=is_rect)
 
         if show:
             window_norm = 'norm'
@@ -201,7 +201,8 @@ def generate_norm_segm_from_coco(dp_coco, caption_coco, image_id, image_mean, sh
 
         # update the deviation of images
         if image_mean is not None:
-            image_deviation_sum = ((np.array(image) - np.array(image_mean)) ** 2) + np.array(image_deviation_sum)
+            image_gray = cv2.cvtColor(image, cv2.COLOR_BGRA2GRAY)
+            image_deviation_sum = ((np.array(image_gray) - np.array(image_mean)) ** 2) + np.array(image_deviation_sum)
 
     if is_updated:
         return image_sum, count, image_deviation_sum
@@ -209,7 +210,7 @@ def generate_norm_segm_from_coco(dp_coco, caption_coco, image_id, image_mean, sh
         return None, 0, None
 
 
-def visualize_mean(dp_coco, caption_coco, image_ids, output_fn, show, is_vitruve):
+def visualize_mean(dp_coco, caption_coco, image_ids, output_fn, is_vitruve, is_rect, show):
 
     # calculate the mean of the COCO poses
     image_mean = np.empty((image_w_and_h, image_w_and_h, 4), np.float32)
@@ -218,17 +219,24 @@ def visualize_mean(dp_coco, caption_coco, image_ids, output_fn, show, is_vitruve
     # total count
     count = 0
 
-    for image_id in image_ids:
+    # per image
+    for idx, image_id in enumerate(image_ids):
+        print('Current number of images:', (idx+1))
+
         try:
-            image_sum, image_count, _ = generate_norm_segm_from_coco(dp_coco=dp_coco, caption_coco=caption_coco, image_id=image_id, image_mean=None, show=show, is_vitruve=is_vitruve)
+            # per person
+            image_sum, image_count, _ = generate_norm_segm_from_coco(dp_coco=dp_coco, caption_coco=caption_coco, image_id=image_id, image_mean=None,
+                                                                     is_vitruve=is_vitruve, is_rect=is_rect, show=show)
+
             if image_count > 0:
                 count += image_count
+                print('Current number of people:', count)
                 image_mean = np.array(image_sum) + np.array(image_mean)
         except:
             continue
 
     if count > 0:
-        print('Number of people:', count)
+        print('Total number of people:', count)
         image_mean = (np.array(image_mean) / count).astype(int)
         # image_mean[..., :] = np.clip(image_mean[..., :], 0, 255)
         # image_mean_norm = np.array(image_mean, dtype=np.uint8)
@@ -247,30 +255,38 @@ def visualize_mean(dp_coco, caption_coco, image_ids, output_fn, show, is_vitruve
         return image_mean_norm
 
 
-def visualize_std(dp_coco, caption_coco, image_ids, image_mean, output_fn, show, is_vitruve):
+def visualize_std(dp_coco, caption_coco, image_ids, image_mean, output_fn, is_vitruve, is_rect, show):
+
+    # convert to grayscale
+    image_mean = cv2.cvtColor(image_mean, cv2.COLOR_BGRA2GRAY)
 
     # calculate the standard deviation of the COCO poses
-    image_std = np.empty((image_w_and_h, image_w_and_h, 4), np.float32)
+    image_std = np.empty((image_w_and_h, image_w_and_h), np.float32)
     image_std.fill(0)
 
     # total count
     count = 0
 
-    for image_id in image_ids:
+    # per image
+    for idx, image_id in enumerate(image_ids):
+        print('Current number of images:', (idx + 1))
+
         try:
-            _, image_count, image_deviation_sum = generate_norm_segm_from_coco(dp_coco=dp_coco, caption_coco=caption_coco, image_id=image_id, image_mean=image_mean, show=show, is_vitruve=is_vitruve)
+            # per person
+            _, image_count, image_deviation_sum = generate_norm_segm_from_coco(dp_coco=dp_coco, caption_coco=caption_coco, image_id=image_id, image_mean=image_mean,
+                                                                               is_vitruve=is_vitruve, is_rect=is_rect, show=show)
 
             if image_count > 0:
                 count += image_count
+                print('Current number of people:', count)
                 image_std = np.array(image_deviation_sum) + np.array(image_std)
         except:
             continue
 
     if count > 1:
-        print('Number of people:', count)
+        print('Total number of people:', count)
         image_std = np.sqrt((np.array(image_std) / (count - 1))).astype(int)
         image_std_norm = cv2.normalize(image_std, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-        image_std_norm = cv2.cvtColor(image_std_norm, cv2.COLOR_RGBA2GRAY)
 
         # show the image
         window_std = 'image_std'
@@ -362,16 +378,38 @@ if __name__ == '__main__':
     # dp_img_ids = [558114]
 
     # test
-    dp_img_ids = [15151, 18956]
+    dp_img_category = 'woman'
+    is_vitruve = False
+    is_rect = False
+
+    if dp_img_category == 'man':
+        dp_img_ids = man_list_img_ids
+    else:
+        dp_img_ids = woman_list_img_ids
+
+    if is_rect:
+        dp_img_block = 'rect'
+    else:
+        dp_img_block = 'convex'
 
     # visualize the mean of images
-    image_mean_output_fn = os.path.join('pix', 'woman_vitruve_mean.png')
+    image_mean_output_fn = os.path.join('pix', '{}_vitruve_mean_{}.png'.format(dp_img_category, dp_img_block))
     image_mean = visualize_mean(dp_coco=dp_coco, caption_coco=caption_coco,
-                                image_ids=woman_list_img_ids[0:50], output_fn=image_mean_output_fn,
-                                show=False, is_vitruve=False)
+                                image_ids=dp_img_ids, output_fn=image_mean_output_fn,
+                                is_vitruve=is_vitruve, is_rect=is_rect, show=False)
+
+    # dilate within contour - option 1
+    # image_mean_contour_output_fn = os.path.join('pix', '{}_vitruve_mean_contour.png'.format(dp_img_name))
+    # image_mean_gray = cv2.cvtColor(image_mean, cv2.COLOR_BGRA2GRAY)
+    # ret, thresh = cv2.threshold(image_mean_gray, 127, 255, 0)
+    # contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    #
+    # image_mean_contour = image_mean.copy()
+    # cv2.drawContours(image_mean_contour, contours, -1, (0, 255, 0), 3)
+    # cv2.imwrite(image_mean_contour_output_fn, image_mean_contour)
 
     # visualize the standard deviation of images
-    # image_std_output_fn = os.path.join('pix', 'man_vitruve_std.png')
-    # visualize_std(dp_coco=dp_coco, caption_coco=caption_coco,
-    #               image_ids=dp_img_ids, image_mean=image_mean, output_fn=image_std_output_fn,
-    #               show=True, is_vitruve=True)
+    image_std_output_fn = os.path.join('pix', '{}_vitruve_std_{}.png'.format(dp_img_category, dp_img_block))
+    visualize_std(dp_coco=dp_coco, caption_coco=caption_coco,
+                  image_ids=dp_img_ids, image_mean=image_mean, output_fn=image_std_output_fn,
+                  is_vitruve=is_vitruve, is_rect=is_rect, show=False)

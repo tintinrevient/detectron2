@@ -644,12 +644,6 @@ def _translate_and_scale_segm_to_convex(image, segm_id, segm_xy, keypoint, ref_p
     img_bg = cv2.resize(img_bg, (int(w * scaler), int(h * scaler)), cv2.INTER_LINEAR)
     h, w, _ = img_bg.shape
 
-    # dilate within contour - option 1
-    # img_bg_gray = cv2.cvtColor(img_bg, cv2.COLOR_BGRA2GRAY)
-    # ret, thresh = cv2.threshold(img_bg_gray, 127, 255, 0)
-    # contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    # cv2.drawContours(img_bg, contours, -1, (0, 255, 0), 3)
-
     # dilate within contour - option 2
     # img_bg[img_bg[:, :, 3] == 0] = (0, 0, 0, 0)
     # kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (10, 10))
@@ -719,7 +713,7 @@ def _translate_and_scale_segm_to_rect(image, segm_id, segm_xy, keypoint, ref_poi
         return scaler
 
 
-def draw_segments_xy(segments_xy, is_vitruve=False):
+def draw_segments_xy(segments_xy, is_vitruve=False, is_rect=True):
 
     if is_vitruve:
         # normalized image = (624, 624, 4)
@@ -729,23 +723,6 @@ def draw_segments_xy(segments_xy, is_vitruve=False):
         # assumption -> default height of head = 63 pixels!
         # scaler = 63 / actual head height
 
-        # [x, y]
-        norm_nose_xy = [312, 145]
-
-        norm_mid_torso_xy = [312, 290]
-
-        norm_mid_rupper_arm_xy = [217, 217]
-        norm_mid_rlower_arm_xy = [148, 217]
-        norm_mid_lupper_arm_xy = [405, 217]
-        norm_mid_llower_arm_xy = [473, 217]
-
-        norm_mid_rthigh_xy = [282, 426]
-        norm_mid_rcalf_xy = [282, 542]
-        norm_mid_lthigh_xy = [322, 426]
-        norm_mid_lcalf_xy = [322, 542]
-
-        radius = 2
-
     else:
         # normalized image = (624, 624, 4)
         image = np.empty((624, 624, 4), np.uint8)
@@ -754,31 +731,37 @@ def draw_segments_xy(segments_xy, is_vitruve=False):
         # assumption -> default height of head = 63 pixels!
         # scaler = 63 / actual head height
 
-        # [x, y]
-        norm_nose_xy = [312, 145]
+    # common settings
+    # [x, y]
+    norm_nose_xy = [312, 145]
 
-        norm_mid_torso_xy = [312, 290]
+    norm_mid_torso_xy = [312, 290]
 
-        norm_mid_rupper_arm_xy = [212, 217]
-        norm_mid_rlower_arm_xy = [112, 217]
-        norm_mid_lupper_arm_xy = [412, 217]
-        norm_mid_llower_arm_xy = [512, 217]
+    norm_mid_rupper_arm_xy = [217, 217]
+    norm_mid_rlower_arm_xy = [148, 217]
+    norm_mid_lupper_arm_xy = [405, 217]
+    norm_mid_llower_arm_xy = [473, 217]
 
-        norm_mid_rthigh_xy = [262, 426]
-        norm_mid_rcalf_xy = [262, 552]
-        norm_mid_lthigh_xy = [362, 426]
-        norm_mid_lcalf_xy = [362, 552]
+    norm_mid_rthigh_xy = [282, 426]
+    norm_mid_rcalf_xy = [282, 542]
+    norm_mid_lthigh_xy = [322, 426]
+    norm_mid_lcalf_xy = [322, 542]
 
-        radius = 2
-
+    # mid-point radius for keypoints
+    radius = 2
 
     # assumption -> size of head for all people is the same!!!
     scaler = None
 
     dispatcher = {
-        'segm_function': _translate_and_scale_segm_to_rect,
-        # 'segm_function': _translate_and_scale_segm_to_convex
+        'segm_function_rect': _translate_and_scale_segm_to_rect,
+        'segm_function_convex': _translate_and_scale_segm_to_convex
     }
+
+    if is_rect:
+        dispatcher['segm_function'] = dispatcher['segm_function_rect']
+    else:
+        dispatcher['segm_function'] = dispatcher['segm_function_convex']
 
     # translate first, scale second!
     # head
@@ -886,7 +869,7 @@ def draw_segments_xy(segments_xy, is_vitruve=False):
     return image
 
 
-def visualize_norm_segm(image_bg, mask, segm, bbox_xywh, keypoints, infile, show=False):
+def visualize_norm_segm(image_bg, mask, segm, bbox_xywh, keypoints, infile, is_vitruve, is_rect, show=False):
 
     x, y, w, h = [int(v) for v in bbox_xywh]
 
@@ -917,7 +900,7 @@ def visualize_norm_segm(image_bg, mask, segm, bbox_xywh, keypoints, infile, show
     segments_xy = rotate_segments_xy(segm=segm, keypoints=keypoints)
 
     # draw segments in normalized image
-    image = draw_segments_xy(segments_xy=segments_xy, is_vitruve=True)
+    image = draw_segments_xy(segments_xy=segments_xy, is_vitruve=is_vitruve, is_rect=is_rect)
 
     if show:
         outfile = generate_norm_segm_outfile(infile)
@@ -993,7 +976,7 @@ def stitch_data(results_densepose, boxes_xywh, data_keypoints, image, show):
     return matched_results_densepose, matched_boxes_xywh, matched_data_keypoints
 
 
-def generate_norm_segm(infile, score_cutoff, show):
+def generate_norm_segm(infile, score_cutoff, is_vitruve, is_rect, show):
 
     print('input:', infile)
 
@@ -1037,7 +1020,8 @@ def generate_norm_segm(infile, score_cutoff, show):
             mask, segm = extract_segm(result_densepose=result_densepose)
 
             # visualizer
-            visualize_norm_segm(image_bg=im_gray, mask=mask, segm=segm, bbox_xywh=box_xywh, keypoints=keypoints, infile=infile, show=show)
+            visualize_norm_segm(image_bg=im_gray, mask=mask, segm=segm, bbox_xywh=box_xywh, keypoints=keypoints, infile=infile,
+                                is_vitruve=is_vitruve, is_rect=is_rect, show=show)
         else:
             continue
 
@@ -1182,7 +1166,7 @@ if __name__ == '__main__':
         if args.output == 'segm':
             generate_segm(infile=args.input, score_cutoff=0.95, show=True)
         elif args.output == 'norm':
-            generate_norm_segm(infile=args.input, score_cutoff=0.95, show=True)
+            generate_norm_segm(infile=args.input, score_cutoff=0.95, is_vitruve=False, is_rect=True, show=True)
 
     elif os.path.isdir(args.input):
         for path in Path(args.input).rglob('*.jpg'):
@@ -1190,7 +1174,7 @@ if __name__ == '__main__':
                 if args.output == 'segm':
                     generate_segm(infile=str(path), score_cutoff=0.9, show=False)
                 elif args.output == 'norm':
-                    generate_norm_segm(infile=args.input, score_cutoff=0.95, show=False)
+                    generate_norm_segm(infile=args.input, score_cutoff=0.95, is_vitruve=False, is_rect=True, show=False)
             except:
                 continue
     else:
