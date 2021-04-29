@@ -352,23 +352,23 @@ def filter_by_caption(dp_coco, caption_coco, yes_word_list, no_word_list):
     return filtered_img_ids
 
 
-if __name__ == '__main__':
-
-    coco_folder = os.path.join('datasets', 'coco')
+def visualize_dist(dp_db_name, caption_db_name, dp_img_category, dp_img_range, is_vitruve, is_rect):
 
     # caption
-    caption_coco = COCO(os.path.join(coco_folder, 'annotations', 'captions_train2014.json'))
+    caption_coco = COCO(os.path.join(coco_folder, 'annotations', caption_db_name))
 
     # dense_pose
     # dp_coco = COCO(os.path.join(coco_folder, 'annotations', 'densepose_minival2014.json'))
-    dp_coco = COCO(os.path.join(coco_folder, 'annotations', 'densepose_train2014.json'))
+    dp_coco = COCO(os.path.join(coco_folder, 'annotations', dp_db_name))
 
     # images of only men
-    man_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['man'], no_word_list=['woman'])
+    man_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['man'],
+                                         no_word_list=['woman'])
     print('Number of images with only men:', len(man_list_img_ids))
 
     # images of only women
-    woman_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['woman'], no_word_list=['man'])
+    woman_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['woman'],
+                                           no_word_list=['man'])
     print('Number of images with only women:', len(woman_list_img_ids))
 
     common_people_img_ids = list(set(man_list_img_ids) & set(woman_list_img_ids))
@@ -377,15 +377,10 @@ if __name__ == '__main__':
     # bugs
     # dp_img_ids = [558114]
 
-    # test
-    dp_img_category = 'woman'
-    is_vitruve = False
-    is_rect = False
-
     if dp_img_category == 'man':
-        dp_img_ids = man_list_img_ids
+        dp_img_ids = man_list_img_ids[dp_img_range]
     else:
-        dp_img_ids = woman_list_img_ids
+        dp_img_ids = woman_list_img_ids[dp_img_range]
 
     if is_rect:
         dp_img_block = 'rect'
@@ -413,3 +408,20 @@ if __name__ == '__main__':
     visualize_std(dp_coco=dp_coco, caption_coco=caption_coco,
                   image_ids=dp_img_ids, image_mean=image_mean, output_fn=image_std_output_fn,
                   is_vitruve=is_vitruve, is_rect=is_rect, show=False)
+
+
+if __name__ == '__main__':
+
+    coco_folder = os.path.join('datasets', 'coco')
+    dp_db_name = 'densepose_train2014.json'
+    caption_db_name = 'captions_train2014.json'
+
+    # visualize the mean and std of all the poses
+    dp_img_category = 'woman'
+    dp_img_range = slice(0, 10)
+    is_vitruve = False
+    is_rect = False
+
+    visualize_dist(dp_db_name=dp_db_name, caption_db_name=caption_db_name,
+                   dp_img_category=dp_img_category, dp_img_range=dp_img_range,
+                   is_vitruve=is_vitruve, is_rect=is_rect)
