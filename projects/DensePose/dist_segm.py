@@ -419,7 +419,7 @@ if __name__ == '__main__':
 
     # visualize the mean and std of all the poses
     dp_img_category = 'woman'
-    dp_img_range = slice(0, 10)
+    dp_img_range = slice(0, None)
     is_vitruve = False
     is_rect = False
 
