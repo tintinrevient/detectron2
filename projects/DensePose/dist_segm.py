@@ -514,6 +514,11 @@ def extract_contour_on_vitruve():
     lsho_x = int(left_arm_x - height * 3 / 8)
     cv2.circle(image, (lsho_x, arm_line_y), radius=radius_keypoint, color=color_keypoint, thickness=-1)
 
+    # draw midpoints and contour on a white image
+    # white image
+    image = np.empty((624, 624, 4), np.uint8)
+    image.fill(255)
+
     # midpoints
     # centroid of head
     nose_y = int((head_top_y + chin_y) / 2)
@@ -552,10 +557,6 @@ def extract_contour_on_vitruve():
     print('llower_arm_x', mid_llower_arm_x)
     print('thigh_y', mid_thigh_y)
     print('calf_y', mid_calf_y)
-
-    # white image
-    image = np.empty((624, 624, 4), np.uint8)
-    image.fill(255)
 
     # contour of head
     head_radius = int(chin_y - nose_y)
