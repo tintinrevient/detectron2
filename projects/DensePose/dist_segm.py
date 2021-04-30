@@ -309,30 +309,13 @@ def visualize_dist(dp_ds_name, caption_ds_name, dp_img_category, dp_img_range, i
     dp_coco = COCO(os.path.join(coco_folder, 'annotations', dp_ds_name))
 
     # images of only men
-    man_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['man', 'stand'],
+    man_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['man'],
                                          no_word_list=['woman'])
     print('Number of images with only men:', len(man_list_img_ids))
 
-    import shutil
-    for man_img_id in man_list_img_ids:
-        entry = dp_coco.loadImgs(man_img_id)[0]
-        dataset_name = entry['file_name'][entry['file_name'].find('_') + 1:entry['file_name'].rfind('_')]
-        image_fpath = os.path.join(coco_folder, dataset_name, entry['file_name'])
-
-        shutil.copyfile(image_fpath, os.path.join('datasets', 'men', entry['file_name']))
-
     # images of only women
-    woman_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['woman', 'stand'],
+    woman_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['woman'],
                                            no_word_list=['man'])
-    print('Number of images with only women:', len(woman_list_img_ids))
-    for woman_img_id in woman_list_img_ids:
-        entry = dp_coco.loadImgs(woman_img_id)[0]
-        dataset_name = entry['file_name'][entry['file_name'].find('_') + 1:entry['file_name'].rfind('_')]
-        image_fpath = os.path.join(coco_folder, dataset_name, entry['file_name'])
-
-        shutil.copyfile(image_fpath, os.path.join('datasets', 'women', entry['file_name']))
-
-    return
 
     # images of both men and women
     common_people_img_ids = list(set(man_list_img_ids) & set(woman_list_img_ids))
