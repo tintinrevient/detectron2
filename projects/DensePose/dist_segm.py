@@ -309,15 +309,32 @@ def visualize_dist(dp_ds_name, caption_ds_name, dp_img_category, dp_img_range, i
     dp_coco = COCO(os.path.join(coco_folder, 'annotations', dp_ds_name))
 
     # images of only men
-    man_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['man'],
+    man_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['man', 'stand'],
                                          no_word_list=['woman'])
     print('Number of images with only men:', len(man_list_img_ids))
 
+    import shutil
+    for man_img_id in man_list_img_ids:
+        entry = dp_coco.loadImgs(man_img_id)[0]
+        dataset_name = entry['file_name'][entry['file_name'].find('_') + 1:entry['file_name'].rfind('_')]
+        image_fpath = os.path.join(coco_folder, dataset_name, entry['file_name'])
+
+        shutil.copyfile(image_fpath, os.path.join('datasets', 'men', entry['file_name']))
+
     # images of only women
-    woman_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['woman'],
+    woman_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['woman', 'stand'],
                                            no_word_list=['man'])
     print('Number of images with only women:', len(woman_list_img_ids))
+    for woman_img_id in woman_list_img_ids:
+        entry = dp_coco.loadImgs(woman_img_id)[0]
+        dataset_name = entry['file_name'][entry['file_name'].find('_') + 1:entry['file_name'].rfind('_')]
+        image_fpath = os.path.join(coco_folder, dataset_name, entry['file_name'])
 
+        shutil.copyfile(image_fpath, os.path.join('datasets', 'women', entry['file_name']))
+
+    return
+
+    # images of both men and women
     common_people_img_ids = list(set(man_list_img_ids) & set(woman_list_img_ids))
     print('Number of images with men and women:', len(common_people_img_ids))
 
@@ -339,16 +356,6 @@ def visualize_dist(dp_ds_name, caption_ds_name, dp_img_category, dp_img_range, i
     image_mean = visualize_mean(dp_coco=dp_coco, caption_coco=caption_coco,
                                 image_ids=dp_img_ids, output_fn=image_mean_output_fn,
                                 is_vitruve=is_vitruve, is_rect=is_rect, show=False)
-
-    # dilate within contour - option 1
-    # image_mean_contour_output_fn = os.path.join('pix', '{}_vitruve_mean_contour.png'.format(dp_img_name))
-    # image_mean_gray = cv2.cvtColor(image_mean, cv2.COLOR_BGRA2GRAY)
-    # ret, thresh = cv2.threshold(image_mean_gray, 127, 255, 0)
-    # contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    #
-    # image_mean_contour = image_mean.copy()
-    # cv2.drawContours(image_mean_contour, contours, -1, (0, 255, 0), 3)
-    # cv2.imwrite(image_mean_contour_output_fn, image_mean_contour)
 
     # visualize the standard deviation of images
     image_std_output_fn = os.path.join('pix', '{}_vitruve_std_{}.png'.format(dp_img_category, dp_img_block))
@@ -404,8 +411,8 @@ def filter_by_caption(dp_coco, caption_coco, yes_word_list, no_word_list):
         # condition: if ALL annotations are matched!
         # match_count > 0
         # match_count == len(annotations)
-        if match_count == len(annotations):
-                filtered_img_ids.append(img_id)
+        if match_count > 0:
+            filtered_img_ids.append(img_id)
 
     return filtered_img_ids
 
@@ -623,14 +630,14 @@ if __name__ == '__main__':
     is_vitruve = False
     is_rect = False
 
-    # visualize_dist(dp_ds_name=dp_ds_name, caption_ds_name=caption_ds_name,
-    #                dp_img_category=dp_img_category, dp_img_range=dp_img_range,
-    #                is_vitruve=is_vitruve, is_rect=is_rect)
+    visualize_dist(dp_ds_name=dp_ds_name, caption_ds_name=caption_ds_name,
+                   dp_img_category=dp_img_category, dp_img_range=dp_img_range,
+                   is_vitruve=is_vitruve, is_rect=is_rect)
 
 
     # superimpose the distribution on the contour of vitruve
-    fname_dist = os.path.join('pix', '{}_vitruve_mean_{}.png'.format(dp_img_category, 'convex'))
-    impose_dist_on_vitruve(fname_dist)
+    # fname_dist = os.path.join('pix', '{}_vitruve_mean_{}.png'.format(dp_img_category, 'rect'))
+    # impose_dist_on_vitruve(fname_dist)
 
 
     # used only for ONCE to generate the contour and midpoints for the vitruve canon!
