@@ -2,14 +2,25 @@ import cv2
 import numpy as np
 from pycocotools.coco import COCO
 import os
+import glob
 import pycocotools.mask as mask_util
 import infer_segm
 from densepose.structures import DensePoseDataRelative
 
 
-# image_w_and_h = 2000
+# dataset setting
+coco_folder = os.path.join('datasets', 'coco')
+
+# dense_pose annotation
+dp_coco = COCO(os.path.join(coco_folder, 'annotations', 'densepose_train2014.json'))
+
+# caption annotation
+caption_coco = COCO(os.path.join(coco_folder, 'annotations', 'captions_train2014.json'))
+
+# image shape
 image_w_and_h = 624
 
+# joint id
 JOINT_ID = [
     'Nose', 'LEye', 'REye', 'LEar', 'REar',
     'LShoulder', 'RShoulder', 'LElbow', 'RElbow', 'LWrist', 'RWrist',
@@ -299,35 +310,45 @@ def visualize_std(dp_coco, caption_coco, image_ids, image_mean, output_fn, is_vi
         cv2.imwrite(output_fn, image_std_norm)
 
 
-def visualize_dist(dp_ds_name, caption_ds_name, dp_img_category, dp_img_range, is_vitruve, is_rect):
-
-    # caption
-    caption_coco = COCO(os.path.join(coco_folder, 'annotations', caption_ds_name))
-
-    # dense_pose
-    # dp_coco = COCO(os.path.join(coco_folder, 'annotations', 'densepose_minival2014.json'))
-    dp_coco = COCO(os.path.join(coco_folder, 'annotations', dp_ds_name))
-
-    # images of only men
-    man_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['man'],
-                                         no_word_list=['woman'])
-    print('Number of images with only men:', len(man_list_img_ids))
-
-    # images of only women
-    woman_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['woman'],
-                                           no_word_list=['man'])
-
-    # images of both men and women
-    common_people_img_ids = list(set(man_list_img_ids) & set(woman_list_img_ids))
-    print('Number of images with men and women:', len(common_people_img_ids))
-
-    # bugs
-    # dp_img_ids = [558114]
+def get_img_ids_by_caption(dp_img_category, dp_img_range):
 
     if dp_img_category == 'man':
+
+        # images of only men
+        man_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['man'],
+                                             no_word_list=['woman'])
+
+        print('Number of images with only men:', len(man_list_img_ids))
+
         dp_img_ids = man_list_img_ids[dp_img_range]
-    else:
+
+    elif dp_img_category == 'woman':
+
+        # images of only women
+        woman_list_img_ids = filter_by_caption(dp_coco=dp_coco, caption_coco=caption_coco, yes_word_list=['woman'],
+                                               no_word_list=['man'])
+
+        print('Number of images with only women:', len(woman_list_img_ids))
+
         dp_img_ids = woman_list_img_ids[dp_img_range]
+
+    return dp_img_ids
+
+
+def get_img_ids_by_dir(indir):
+
+    dp_img_ids = []
+
+    for fname in glob.glob(indir + '/*.jpg'):
+
+        img_id = int(fname[fname.rfind('_')+1:fname.rfind('.')])
+
+        dp_img_ids.append(img_id)
+
+    return dp_img_ids
+
+
+def visualize_dist(dp_img_category, dp_img_ids, is_vitruve, is_rect, show):
 
     if is_rect:
         dp_img_block = 'rect'
@@ -338,7 +359,7 @@ def visualize_dist(dp_ds_name, caption_ds_name, dp_img_category, dp_img_range, i
     image_mean_output_fn = os.path.join('pix', '{}_vitruve_mean_{}.png'.format(dp_img_category, dp_img_block))
     image_mean = visualize_mean(dp_coco=dp_coco, caption_coco=caption_coco,
                                 image_ids=dp_img_ids, output_fn=image_mean_output_fn,
-                                is_vitruve=is_vitruve, is_rect=is_rect, show=False)
+                                is_vitruve=is_vitruve, is_rect=is_rect, show=show)
 
     # visualize the standard deviation of images
     image_std_output_fn = os.path.join('pix', '{}_vitruve_std_{}.png'.format(dp_img_category, dp_img_block))
@@ -394,7 +415,7 @@ def filter_by_caption(dp_coco, caption_coco, yes_word_list, no_word_list):
         # condition: if ALL annotations are matched!
         # match_count > 0
         # match_count == len(annotations)
-        if match_count > 0:
+        if match_count == len(annotations):
             filtered_img_ids.append(img_id)
 
     return filtered_img_ids
@@ -602,20 +623,26 @@ def impose_dist_on_vitruve(fname_dist):
 
 if __name__ == '__main__':
 
-    # dataset setting
-    coco_folder = os.path.join('datasets', 'coco')
-    dp_ds_name = 'densepose_train2014.json'
-    caption_ds_name = 'captions_train2014.json'
+    # bugs
+    # dp_img_ids = [558114, 262710]
 
-    # visualize the mean and std of all the poses
-    dp_img_category = 'man'
-    dp_img_range = slice(0, None)
+    # common setting
+    dp_img_category = 'man' # man or woman
     is_vitruve = False
     is_rect = False
 
-    visualize_dist(dp_ds_name=dp_ds_name, caption_ds_name=caption_ds_name,
-                   dp_img_category=dp_img_category, dp_img_range=dp_img_range,
-                   is_vitruve=is_vitruve, is_rect=is_rect)
+    # option 1 - images within a range
+    # dp_img_range = slice(0, 10)
+    # dp_img_ids = get_img_ids_by_caption(dp_img_category=dp_img_category, dp_img_range=dp_img_range)
+
+    # option 2 - image from a directory
+    img_dir = os.path.join('datasets', dp_img_category)
+    dp_img_ids = get_img_ids_by_dir(indir=img_dir)
+
+
+    # visualize the mean and std of all the poses
+    visualize_dist(dp_img_category=dp_img_category, dp_img_ids=dp_img_ids,
+                   is_vitruve=is_vitruve, is_rect=is_rect, show=True)
 
 
     # superimpose the distribution on the contour of vitruve
