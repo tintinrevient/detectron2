@@ -617,9 +617,37 @@ def rotate_segments_xy(segm, keypoints):
     return tpose_segments_xy
 
 
-def _translate_and_scale_segm_to_convex(image, segm_id, segm_xy, keypoint, ref_point, scaler):
+def _euclidian(point1, point2):
 
+    return np.sqrt((point1[0]-point2[0])**2 + (point1[1]-point2[1])**2)
+
+
+def _remove_outlier(segm_xy):
+
+    # outlier factor
+    factor = 3
+
+    # mean of [x, y]
+    xy_mean = np.mean(segm_xy, axis=0)
+
+    # mean distance between [x, y] and mean of [x, y]
+    distance_mean = np.mean([_euclidian(xy, xy_mean) for xy in segm_xy])
+
+    # remove outliers from segm_xy
+    segm_xy_without_outliers = [xy for xy in segm_xy if _euclidian(xy, xy_mean) <= distance_mean * factor]
+
+    return segm_xy_without_outliers
+
+
+def _translate_and_scale_segm_to_convex(image, segm_id, segm_xy, keypoint, ref_point, is_man, scaler):
+
+    # test each segment
     # print('Segment ID:', segm_id)
+
+    # remove outliers
+    print('Before removing outliers:', len(segm_xy))
+    segm_xy = np.array(_remove_outlier(segm_xy=segm_xy)).astype(int)
+    print('After removing outliers:', len(segm_xy))
 
     min_x, min_y = np.min(segm_xy, axis=0).astype(int)
     max_x, max_y = np.max(segm_xy, axis=0).astype(int)
@@ -634,12 +662,20 @@ def _translate_and_scale_segm_to_convex(image, segm_id, segm_xy, keypoint, ref_p
     img_bg[:, :, 3] = 0  # alpha channel = 0 -> transparent
 
     # fill the segment with the segment color
-    contours = [[int(x - min_x + margin), int(y - min_y + margin)] for x, y in segm_xy.astype(int)]
+    contours = [[int(x - min_x + margin), int(y - min_y + margin)] for x, y in segm_xy]
     contours = np.array(contours, np.int32)
-    cv2.fillConvexPoly(img_bg,  cv2.convexHull(contours), color=COARSE_TO_COLOR[segm_id])
+    cv2.fillConvexPoly(img_bg, cv2.convexHull(contours), color=COARSE_TO_COLOR[segm_id])
 
+    cv2.imshow('test', img_bg)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+    # assumption: head_radius = 31 -> head_height = 31*2 = 62 -> men; 58 -> women
     if segm_id == 'Head' and h > 0:
-        scaler = 63 / h
+        if is_man:
+            scaler = 62 / h
+        else:
+            scaler = 58 / h
 
     img_bg = cv2.resize(img_bg, (int(w * scaler), int(h * scaler)), cv2.INTER_LINEAR)
     h, w, _ = img_bg.shape
@@ -672,9 +708,15 @@ def _translate_and_scale_segm_to_convex(image, segm_id, segm_xy, keypoint, ref_p
         return scaler
 
 
-def _translate_and_scale_segm_to_rect(image, segm_id, segm_xy, keypoint, ref_point, scaler):
+def _translate_and_scale_segm_to_rect(image, segm_id, segm_xy, keypoint, ref_point, is_man, scaler):
 
+    # test each segment
     # print('Segment ID:', segm_id)
+
+    # remove outliers
+    print('Before removing outliers:', len(segm_xy))
+    segm_xy = np.array(_remove_outlier(segm_xy=segm_xy)).astype(int)
+    print('After removing outliers:', len(segm_xy))
 
     min_x, min_y = np.min(segm_xy, axis=0).astype(int)
     max_x, max_y = np.max(segm_xy, axis=0).astype(int)
@@ -687,7 +729,10 @@ def _translate_and_scale_segm_to_rect(image, segm_id, segm_xy, keypoint, ref_poi
     img_bg[:, :] = COARSE_TO_COLOR[segm_id]
 
     if segm_id == 'Head' and h > 0:
-        scaler = 63 / h
+        if is_man:
+            scaler = 62 / h
+        else:
+            scaler = 58 / h
 
     img_bg = cv2.resize(img_bg, (int(w * scaler), int(h * scaler)), cv2.INTER_LINEAR)
     h, w, _ = img_bg.shape
@@ -713,7 +758,7 @@ def _translate_and_scale_segm_to_rect(image, segm_id, segm_xy, keypoint, ref_poi
         return scaler
 
 
-def draw_segments_xy(segments_xy, is_vitruve=False, is_rect=True):
+def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man):
 
     if is_vitruve:
         # normalized image = (624, 624, 4)
@@ -784,7 +829,7 @@ def draw_segments_xy(segments_xy, is_vitruve=False, is_rect=True):
                                              segm_id='Head', segm_xy=segments_xy['Head']['segm_xy'],
                                              keypoint=segments_xy['Head']['keypoints']['Nose'],
                                              ref_point=norm_nose_xy,
-                                             scaler=None)
+                                             is_man=is_man, scaler=None)
 
     # torso
     if 'Torso' in segments_xy:
@@ -793,7 +838,7 @@ def draw_segments_xy(segments_xy, is_vitruve=False, is_rect=True):
                                     segm_xy=segments_xy['Torso']['segm_xy'],
                                     keypoint=segments_xy['Torso']['keypoints']['MidHip'],
                                     ref_point=norm_mid_torso_xy,
-                                    scaler=scaler)
+                                    is_man=is_man, scaler=scaler)
 
     # upper limbs
     if 'RUpperArm' in segments_xy:
@@ -802,7 +847,7 @@ def draw_segments_xy(segments_xy, is_vitruve=False, is_rect=True):
                                     segm_xy=segments_xy['RUpperArm']['segm_xy'],
                                     keypoint=segments_xy['RUpperArm']['keypoints']['RElbow'],
                                     ref_point=norm_mid_rupper_arm_xy,
-                                    scaler=scaler)
+                                    is_man=is_man, scaler=scaler)
 
     if 'RLowerArm' in segments_xy:
         dispatcher['segm_function'](image=image,
@@ -810,7 +855,7 @@ def draw_segments_xy(segments_xy, is_vitruve=False, is_rect=True):
                                     segm_xy=segments_xy['RLowerArm']['segm_xy'],
                                     keypoint=segments_xy['RLowerArm']['keypoints']['RWrist'],
                                     ref_point=norm_mid_rlower_arm_xy,
-                                    scaler=scaler)
+                                    is_man=is_man, scaler=scaler)
 
     if 'LUpperArm' in segments_xy:
         dispatcher['segm_function'](image=image,
@@ -818,7 +863,7 @@ def draw_segments_xy(segments_xy, is_vitruve=False, is_rect=True):
                                     segm_xy=segments_xy['LUpperArm']['segm_xy'],
                                     keypoint=segments_xy['LUpperArm']['keypoints']['LElbow'],
                                     ref_point=norm_mid_lupper_arm_xy,
-                                    scaler=scaler)
+                                    is_man=is_man, scaler=scaler)
 
     if 'LLowerArm' in segments_xy:
         dispatcher['segm_function'](image=image,
@@ -826,7 +871,7 @@ def draw_segments_xy(segments_xy, is_vitruve=False, is_rect=True):
                                     segm_xy=segments_xy['LLowerArm']['segm_xy'],
                                     keypoint=segments_xy['LLowerArm']['keypoints']['LWrist'],
                                     ref_point=norm_mid_llower_arm_xy,
-                                    scaler=scaler)
+                                    is_man=is_man, scaler=scaler)
 
     # lower limbs
     if 'RThigh' in segments_xy:
@@ -835,7 +880,7 @@ def draw_segments_xy(segments_xy, is_vitruve=False, is_rect=True):
                                     segm_xy=segments_xy['RThigh']['segm_xy'],
                                     keypoint=segments_xy['RThigh']['keypoints']['RKnee'],
                                     ref_point=norm_mid_rthigh_xy,
-                                    scaler=scaler)
+                                    is_man=is_man, scaler=scaler)
 
     if 'RCalf' in segments_xy:
         dispatcher['segm_function'](image=image,
@@ -843,7 +888,7 @@ def draw_segments_xy(segments_xy, is_vitruve=False, is_rect=True):
                                     segm_xy=segments_xy['RCalf']['segm_xy'],
                                     keypoint=segments_xy['RCalf']['keypoints']['RAnkle'],
                                     ref_point=norm_mid_rcalf_xy,
-                                    scaler=scaler)
+                                    is_man=is_man, scaler=scaler)
 
     if 'LThigh' in segments_xy:
         dispatcher['segm_function'](image=image,
@@ -851,7 +896,7 @@ def draw_segments_xy(segments_xy, is_vitruve=False, is_rect=True):
                                     segm_xy=segments_xy['LThigh']['segm_xy'],
                                     keypoint=segments_xy['LThigh']['keypoints']['LKnee'],
                                     ref_point=norm_mid_lthigh_xy,
-                                    scaler=scaler)
+                                    is_man=is_man, scaler=scaler)
 
     if 'LCalf' in segments_xy:
         dispatcher['segm_function'](image=image,
@@ -859,7 +904,7 @@ def draw_segments_xy(segments_xy, is_vitruve=False, is_rect=True):
                                     segm_xy=segments_xy['LCalf']['segm_xy'],
                                     keypoint=segments_xy['LCalf']['keypoints']['LAnkle'],
                                     ref_point=norm_mid_lcalf_xy,
-                                    scaler=scaler)
+                                    is_man=is_man, scaler=scaler)
 
     # draw centers
     # head center
@@ -883,7 +928,7 @@ def draw_segments_xy(segments_xy, is_vitruve=False, is_rect=True):
     return image
 
 
-def visualize_norm_segm(image_bg, mask, segm, bbox_xywh, keypoints, infile, is_vitruve, is_rect, show=False):
+def visualize_norm_segm(image_bg, mask, segm, bbox_xywh, keypoints, infile, is_vitruve, is_rect, is_man, show=False):
 
     x, y, w, h = [int(v) for v in bbox_xywh]
 
@@ -914,7 +959,7 @@ def visualize_norm_segm(image_bg, mask, segm, bbox_xywh, keypoints, infile, is_v
     segments_xy = rotate_segments_xy(segm=segm, keypoints=keypoints)
 
     # draw segments in normalized image
-    image = draw_segments_xy(segments_xy=segments_xy, is_vitruve=is_vitruve, is_rect=is_rect)
+    image = draw_segments_xy(segments_xy=segments_xy, is_vitruve=is_vitruve, is_rect=is_rect, is_man=is_man)
 
     if show:
         outfile = generate_norm_segm_outfile(infile)
@@ -990,7 +1035,7 @@ def stitch_data(results_densepose, boxes_xywh, data_keypoints, image, show):
     return matched_results_densepose, matched_boxes_xywh, matched_data_keypoints
 
 
-def generate_norm_segm(infile, score_cutoff, is_vitruve, is_rect, show):
+def generate_norm_segm(infile, score_cutoff, is_vitruve, is_rect, is_man, show):
 
     print('input:', infile)
 
@@ -1035,7 +1080,7 @@ def generate_norm_segm(infile, score_cutoff, is_vitruve, is_rect, show):
 
             # visualizer
             visualize_norm_segm(image_bg=im_gray, mask=mask, segm=segm, bbox_xywh=box_xywh, keypoints=keypoints, infile=infile,
-                                is_vitruve=is_vitruve, is_rect=is_rect, show=show)
+                                is_vitruve=is_vitruve, is_rect=is_rect, is_man=is_man, show=show)
         else:
             continue
 
@@ -1142,12 +1187,12 @@ if __name__ == '__main__':
 
     # example cases
     # modern
-    # python infer_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg --output norm
-    # python infer_segm.py --input datasets/modern/Paul\ Gauguin/14206.jpg --output norm
+    # python infer_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg --gender woman --output norm
+    # python infer_segm.py --input datasets/modern/Paul\ Gauguin/14206.jpg --gender woman --output norm
 
     # classical
-    # python infer_segm.py --input datasets/classical/Michelangelo/12758.jpg --output norm
-    # python infer_segm.py --input datasets/classical/Artemisia\ Gentileschi/45093.jpg --output norm
+    # python infer_segm.py --input datasets/classical/Michelangelo/12758.jpg --gender man --output norm
+    # python infer_segm.py --input datasets/classical/Artemisia\ Gentileschi/45093.jpg --gender man --output norm
 
     # python infer_segm.py --input datasets/classical/Pierre-Auguste\ Renoir/96672.jpg --output norm
     # python infer_segm.py --input datasets/classical/Pierre-Auguste\ Renoir/90411.jpg --output norm
@@ -1173,14 +1218,22 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='DensePose - Infer the segments')
     parser.add_argument('--input', help='Path to image file or directory')
+    parser.add_argument('--gender', help='Gender of the figure')
     parser.add_argument('--output', help='segm is segment only, norm is normalized segment')
     args = parser.parse_args()
+
+    if args.gender == 'man':
+        is_man = True
+    elif args.gender == 'woman':
+        is_man = False
 
     if os.path.isfile(args.input):
         if args.output == 'segm':
             generate_segm(infile=args.input, score_cutoff=0.95, show=True)
         elif args.output == 'norm':
-            generate_norm_segm(infile=args.input, score_cutoff=0.95, is_vitruve=True, is_rect=False, show=True)
+            generate_norm_segm(infile=args.input, score_cutoff=0.95,
+                               is_vitruve=False, is_rect=True, is_man=is_man,
+                               show=True)
 
     elif os.path.isdir(args.input):
         for path in Path(args.input).rglob('*.jpg'):
@@ -1188,7 +1241,9 @@ if __name__ == '__main__':
                 if args.output == 'segm':
                     generate_segm(infile=str(path), score_cutoff=0.9, show=False)
                 elif args.output == 'norm':
-                    generate_norm_segm(infile=args.input, score_cutoff=0.95, is_vitruve=False, is_rect=True, show=False)
+                    generate_norm_segm(infile=args.input, score_cutoff=0.95,
+                                       is_vitruve=False, is_rect=True, is_man=is_man,
+                                       show=False)
             except:
                 continue
     else:

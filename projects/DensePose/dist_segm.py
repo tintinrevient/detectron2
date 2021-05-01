@@ -124,7 +124,7 @@ def _show_full_image(segm, annotation, im_output, caption_coco):
     cv2.destroyAllWindows()
 
 
-def generate_norm_segm_from_coco(dp_coco, caption_coco, image_id, image_mean, is_vitruve, is_rect, show):
+def generate_norm_segm_from_coco(dp_coco, caption_coco, image_id, image_mean, is_vitruve, is_rect, is_man, show):
 
     entry = dp_coco.loadImgs(image_id)[0]
 
@@ -196,7 +196,7 @@ def generate_norm_segm_from_coco(dp_coco, caption_coco, image_id, image_mean, is
         segments_xy = infer_segm.rotate_segments_xy(segm=segm, keypoints=keypoints)
 
         # draw segments in normalized image
-        image = infer_segm.draw_segments_xy(segments_xy=segments_xy, is_vitruve=is_vitruve, is_rect=is_rect)
+        image = infer_segm.draw_segments_xy(segments_xy=segments_xy, is_vitruve=is_vitruve, is_rect=is_rect, is_man=is_man)
 
         if show:
             window_norm = 'norm'
@@ -221,7 +221,7 @@ def generate_norm_segm_from_coco(dp_coco, caption_coco, image_id, image_mean, is
         return None, 0, None
 
 
-def visualize_mean(dp_coco, caption_coco, image_ids, output_fn, is_vitruve, is_rect, show):
+def visualize_mean(dp_coco, caption_coco, image_ids, output_fn, is_vitruve, is_rect, is_man, show):
 
     # calculate the mean of the COCO poses
     image_mean = np.empty((image_w_and_h, image_w_and_h, 4), np.float32)
@@ -237,7 +237,7 @@ def visualize_mean(dp_coco, caption_coco, image_ids, output_fn, is_vitruve, is_r
         try:
             # per person
             image_sum, image_count, _ = generate_norm_segm_from_coco(dp_coco=dp_coco, caption_coco=caption_coco, image_id=image_id, image_mean=None,
-                                                                     is_vitruve=is_vitruve, is_rect=is_rect, show=show)
+                                                                     is_vitruve=is_vitruve, is_rect=is_rect, is_man=is_man, show=show)
 
             if image_count > 0:
                 count += image_count
@@ -266,7 +266,7 @@ def visualize_mean(dp_coco, caption_coco, image_ids, output_fn, is_vitruve, is_r
         return image_mean_norm
 
 
-def visualize_std(dp_coco, caption_coco, image_ids, image_mean, output_fn, is_vitruve, is_rect, show):
+def visualize_std(dp_coco, caption_coco, image_ids, image_mean, output_fn, is_vitruve, is_rect, is_man, show):
 
     # convert to grayscale
     image_mean = cv2.cvtColor(image_mean, cv2.COLOR_BGRA2GRAY)
@@ -285,7 +285,7 @@ def visualize_std(dp_coco, caption_coco, image_ids, image_mean, output_fn, is_vi
         try:
             # per person
             _, image_count, image_deviation_sum = generate_norm_segm_from_coco(dp_coco=dp_coco, caption_coco=caption_coco, image_id=image_id, image_mean=image_mean,
-                                                                               is_vitruve=is_vitruve, is_rect=is_rect, show=show)
+                                                                               is_vitruve=is_vitruve, is_rect=is_rect, is_man=is_man, show=show)
 
             if image_count > 0:
                 count += image_count
@@ -350,6 +350,11 @@ def get_img_ids_by_dir(indir):
 
 def visualize_dist(dp_img_category, dp_img_ids, is_vitruve, is_rect, show):
 
+    if dp_img_category == 'man':
+        is_man = True
+    elif dp_img_category == 'woman':
+        is_man = False
+
     if is_rect:
         dp_img_block = 'rect'
     else:
@@ -359,13 +364,13 @@ def visualize_dist(dp_img_category, dp_img_ids, is_vitruve, is_rect, show):
     image_mean_output_fn = os.path.join('pix', '{}_vitruve_mean_{}.png'.format(dp_img_category, dp_img_block))
     image_mean = visualize_mean(dp_coco=dp_coco, caption_coco=caption_coco,
                                 image_ids=dp_img_ids, output_fn=image_mean_output_fn,
-                                is_vitruve=is_vitruve, is_rect=is_rect, show=show)
+                                is_vitruve=is_vitruve, is_rect=is_rect, is_man=is_man, show=show)
 
     # visualize the standard deviation of images
     image_std_output_fn = os.path.join('pix', '{}_vitruve_std_{}.png'.format(dp_img_category, dp_img_block))
     visualize_std(dp_coco=dp_coco, caption_coco=caption_coco,
                   image_ids=dp_img_ids, image_mean=image_mean, output_fn=image_std_output_fn,
-                  is_vitruve=is_vitruve, is_rect=is_rect, show=False)
+                  is_vitruve=is_vitruve, is_rect=is_rect, is_man=is_man, show=False)
 
 
 def filter_by_caption(dp_coco, caption_coco, yes_word_list, no_word_list):
@@ -571,6 +576,7 @@ def extract_contour_on_vitruve():
 
     # contour of head
     head_radius = int(chin_y - nose_y)
+    print('head_radius:', head_radius)
     cv2.circle(image, (mid_x, nose_y), radius=head_radius, color=color_contour, thickness=thickness_contour)
 
     # contour of torso
@@ -627,7 +633,7 @@ if __name__ == '__main__':
     # dp_img_ids = [558114, 262710]
 
     # common setting
-    dp_img_category = 'man' # man or woman
+    dp_img_category = 'woman' # man or woman
     is_vitruve = False
     is_rect = False
 

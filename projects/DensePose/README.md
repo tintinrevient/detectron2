@@ -103,3 +103,5 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
 * https://smpl.is.tue.mpg.de/en
 * https://pytorch3d.org/tutorials/render_densepose
 * https://en.wikipedia.org/wiki/Artistic_canons_of_body_proportions
+* https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_imgproc/py_morphological_ops/py_morphological_ops.html
+* https://docs.opencv.org/3.4/db/df6/tutorial_erosion_dilatation.html
