@@ -28,6 +28,7 @@ import matplotlib.pyplot as plt
 window_segm = 'segm'
 window_bbox = 'bbox'
 window_norm = 'norm'
+window_dilation = 'dilation'
 window_stitched_data = 'stitched data'
 
 # setting
@@ -272,7 +273,7 @@ def is_valid(keypoints):
         return True
 
 
-def get_segments_xy(segm, keypoints):
+def _get_segments_xy(segm, keypoints):
 
     segments_xy = []
 
@@ -606,7 +607,7 @@ def rotate_segments_xy(segm, keypoints):
 
     # STEP 1: rotated any pose to a vertical pose, i.e., stand up, sit up, etc...
     # extract original segment's x, y
-    segments_xy = get_segments_xy(segm=segm, keypoints=keypoints)
+    segments_xy = _get_segments_xy(segm=segm, keypoints=keypoints)
 
     # rotated segment to vertical pose, i.e., stand up, sit up, etc...
     vertical_segments_xy = _rotate_to_vertical_pose(segments_xy=segments_xy)
@@ -665,10 +666,6 @@ def _translate_and_scale_segm_to_convex(image, segm_id, segm_xy, keypoint, ref_p
     contours = [[int(x - min_x + margin), int(y - min_y + margin)] for x, y in segm_xy]
     contours = np.array(contours, np.int32)
     cv2.fillConvexPoly(img_bg, cv2.convexHull(contours), color=COARSE_TO_COLOR[segm_id])
-
-    cv2.imshow('test', img_bg)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
 
     # assumption: head_radius = 31 -> head_height = 31*2 = 62 -> men; 58 -> women
     if segm_id == 'Head' and h > 0:
@@ -976,7 +973,170 @@ def visualize_norm_segm(image_bg, mask, segm, bbox_xywh, keypoints, infile, is_v
         print('output', outfile)
 
 
+def _dilate_segm_to_convex(image, segm_id, segm_xy, bbox_xywh):
+
+    # test each segment
+    # print('Segment ID:', segm_id)
+
+    # remove outliers
+    print('Before removing outliers:', len(segm_xy))
+    segm_xy = np.array(_remove_outlier(segm_xy=segm_xy)).astype(int)
+    print('After removing outliers:', len(segm_xy))
+
+    min_x, min_y = np.min(segm_xy, axis=0).astype(int)
+    max_x, max_y = np.max(segm_xy, axis=0).astype(int)
+
+    margin = 5
+
+    w = int(max_x - min_x + margin * 2)
+    h = int(max_y - min_y + margin * 2)
+
+    img_bg = np.empty((h, w, 4), np.uint8)
+    img_bg.fill(255)
+    img_bg[:, :, 3] = 0  # alpha channel = 0 -> transparent
+
+    # fill the segment with the segment color
+    contours = [[int(x - min_x + margin), int(y - min_y + margin)] for x, y in segm_xy]
+    contours = np.array(contours, np.int32)
+    cv2.fillConvexPoly(img_bg, cv2.convexHull(contours), color=COARSE_TO_COLOR[segm_id])
+
+    # translate from the bbox's coordinate to the image's coordinate
+    bbox_x, bbox_y, bbox_w, bbox_h = bbox_xywh
+
+    cond_bg = img_bg[:, :, 3] > 0  # condition for already-drawn segment pixels
+
+    image[int(min_y-margin+bbox_y):int(max_y+margin+bbox_y), int(min_x-margin+bbox_x):int(max_x+margin+bbox_x), :][cond_bg] = img_bg[cond_bg]
+
+
+def _dilate_segm_to_rect(image, segm_id, segm_xy, bbox_xywh):
+
+    # test each segment
+    # print('Segment ID:', segm_id)
+
+    # remove outliers
+    print('Before removing outliers:', len(segm_xy))
+    segm_xy = np.array(_remove_outlier(segm_xy=segm_xy)).astype(int)
+    print('After removing outliers:', len(segm_xy))
+
+    min_x, min_y = np.min(segm_xy, axis=0).astype(int)
+    max_x, max_y = np.max(segm_xy, axis=0).astype(int)
+
+    w = int(max_x - min_x)
+    h = int(max_y - min_y)
+
+    img_bg = np.empty((h, w, 4), np.uint8)
+    img_bg.fill(255)
+    img_bg[:, :] = COARSE_TO_COLOR[segm_id]
+
+    # translate from the bbox's coordinate to the image's coordinate
+    bbox_x, bbox_y, bbox_w, bbox_h = bbox_xywh
+
+    image[int(min_y+bbox_y):int(max_y+bbox_y), int(min_x+bbox_x):int(max_x+bbox_x), :] = img_bg
+
+
+def dilate_segm(image, mask, segm, bbox_xywh, keypoints, infile, is_rect, show):
+
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2BGRA)
+    image_overlay = image.copy()
+
+    keypoints = dict(zip(JOINT_ID, keypoints))
+    segments_xy = _get_segments_xy(segm=segm, keypoints=keypoints)
+
+    dispatcher = {
+        'dilate_to_rect': _dilate_segm_to_rect,
+        'dilate_to_convex': _dilate_segm_to_convex
+    }
+
+    if is_rect:
+        dispatcher['dilate_function'] = dispatcher['dilate_to_rect']
+    else:
+        dispatcher['dilate_function'] = dispatcher['dilate_to_convex']
+
+
+    # draw segments in the original image
+    if 'Head' in segments_xy:
+        dispatcher['dilate_function'](image=image,
+                                      segm_id='Head',
+                                      segm_xy=segments_xy['Head']['segm_xy'],
+                                      bbox_xywh=bbox_xywh)
+
+    # torso
+    if 'Torso' in segments_xy:
+        dispatcher['dilate_function'](image=image,
+                                      segm_id='Torso',
+                                      segm_xy=segments_xy['Torso']['segm_xy'],
+                                      bbox_xywh=bbox_xywh)
+
+    # upper limbs
+    if 'RUpperArm' in segments_xy:
+        dispatcher['dilate_function'](image=image,
+                                      segm_id='RUpperArm',
+                                      segm_xy=segments_xy['RUpperArm']['segm_xy'],
+                                      bbox_xywh=bbox_xywh)
+
+    if 'RLowerArm' in segments_xy:
+        dispatcher['dilate_function'](image=image,
+                                      segm_id='RLowerArm',
+                                      segm_xy=segments_xy['RLowerArm']['segm_xy'],
+                                      bbox_xywh=bbox_xywh)
+
+    if 'LUpperArm' in segments_xy:
+        dispatcher['dilate_function'](image=image,
+                                      segm_id='LUpperArm',
+                                      segm_xy=segments_xy['LUpperArm']['segm_xy'],
+                                      bbox_xywh=bbox_xywh)
+
+    if 'LLowerArm' in segments_xy:
+        dispatcher['dilate_function'](image=image,
+                                      segm_id='LLowerArm',
+                                      segm_xy=segments_xy['LLowerArm']['segm_xy'],
+                                      bbox_xywh=bbox_xywh)
+
+    # lower limbs
+    if 'RThigh' in segments_xy:
+        dispatcher['dilate_function'](image=image,
+                                      segm_id='RThigh',
+                                      segm_xy=segments_xy['RThigh']['segm_xy'],
+                                      bbox_xywh=bbox_xywh)
+
+    if 'RCalf' in segments_xy:
+        dispatcher['dilate_function'](image=image,
+                                      segm_id='RCalf',
+                                      segm_xy=segments_xy['RCalf']['segm_xy'],
+                                      bbox_xywh=bbox_xywh)
+
+    if 'LThigh' in segments_xy:
+        dispatcher['dilate_function'](image=image,
+                                      segm_id='LThigh',
+                                      segm_xy=segments_xy['LThigh']['segm_xy'],
+                                      bbox_xywh=bbox_xywh)
+
+    if 'LCalf' in segments_xy:
+        dispatcher['dilate_function'](image=image,
+                                      segm_id='LCalf',
+                                      segm_xy=segments_xy['LCalf']['segm_xy'],
+                                      bbox_xywh=bbox_xywh)
+
+    added_image = cv2.addWeighted(image_overlay, 0.5, image, 0.5, 0)
+
+    if show:
+        outfile = generate_dilated_segm_outfile(infile)
+        cv2.imwrite(outfile, added_image)
+        print('output', outfile)
+
+        cv2.imshow(window_dilation, added_image)
+        cv2.setWindowProperty(window_dilation, cv2.WND_PROP_TOPMOST, 1)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+    else:
+        outfile = generate_dilated_segm_outfile(infile)
+        cv2.imwrite(outfile, added_image)
+        print('output', outfile)
+
+
 def stitch_data(results_densepose, boxes_xywh, data_keypoints, image, show):
+
+    image = image.copy()
 
     # print('length of results_densepose:', len(results_densepose))
     # print('length of boxes_xywh:', len(boxes_xywh))
@@ -1009,13 +1169,16 @@ def stitch_data(results_densepose, boxes_xywh, data_keypoints, image, show):
                     matched_boxes_xywh.append(box_xywh)
                     matched_data_keypoints.append(keypoints)
 
+                    # draw the centroid
                     cv2.circle(image, (int(centroid_x), int(centroid_y)), radius=5, color=(255, 0, 255), thickness=5)
 
+                    # draw the bbox
                     cv2.line(image, (x, y), (int(x + w), y), color=(0, 255, 0), thickness=5)
                     cv2.line(image, (x, y), (x, int(y + h)), color=(0, 255, 0), thickness=5)
                     cv2.line(image, (int(x + w), int(y + h)), (x, int(y + h)), color=(0, 255, 0), thickness=5)
                     cv2.line(image, (int(x + w), int(y + h)), (int(x + w), y), color=(0, 255, 0), thickness=5)
 
+                    # draw the keypoints
                     for keypoint in keypoints:
                         x, y, _ = keypoint
                         cv2.circle(image, (int(x), int(y)), radius=5, color=(0, 255, 255), thickness=5)
@@ -1078,6 +1241,10 @@ def generate_norm_segm(infile, score_cutoff, is_vitruve, is_rect, is_man, show):
             # extract segm + mask
             mask, segm = extract_segm(result_densepose=result_densepose)
 
+            # dilate segments
+            dilate_segm(image=im_gray, mask=mask, segm=segm, bbox_xywh=box_xywh, keypoints=keypoints, infile=infile,
+                        is_rect=is_rect, show=show)
+
             # visualizer
             visualize_norm_segm(image_bg=im_gray, mask=mask, segm=segm, bbox_xywh=box_xywh, keypoints=keypoints, infile=infile,
                                 is_vitruve=is_vitruve, is_rect=is_rect, is_man=is_man, show=show)
@@ -1094,6 +1261,19 @@ def generate_norm_segm_outfile(infile):
 
     fname = infile[infile.find('/') + 1:infile.rfind('.')]
     outfile = os.path.join(norm_segm_dir, '{}_norm.jpg'.format(fname))
+
+    return outfile
+
+
+def generate_dilated_segm_outfile(infile):
+
+    outdir = os.path.join(norm_segm_dir, infile[infile.find('/') + 1:infile.rfind('/')])
+
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+
+    fname = infile[infile.find('/') + 1:infile.rfind('.')]
+    outfile = os.path.join(norm_segm_dir, '{}_dilated.jpg'.format(fname))
 
     return outfile
 
