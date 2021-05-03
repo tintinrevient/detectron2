@@ -536,11 +536,11 @@ def extract_contour_on_vitruve():
     image.fill(255)
 
     # midpoints
-    # centroid of head
+    # centroid of head = midpoint of vertical line and [horizontal line]
     nose_y = int((head_top_y + chin_y) / 2)
     cv2.circle(image, (mid_x, nose_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
 
-    # midpoint of torso
+    # midpoint of torso = (midhip + neck) / 2
     mid_torso_y = int((midhip_y + neck_y) / 2)
     cv2.circle(image, (mid_x, mid_torso_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
 

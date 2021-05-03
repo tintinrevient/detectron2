@@ -22,7 +22,9 @@ import collections
 import argparse
 from pathlib import Path
 import matplotlib.pyplot as plt
-
+from scipy import ndimage
+from scipy.ndimage.interpolation import rotate
+from scipy.spatial import ConvexHull
 
 # window setting
 window_segm = 'segm'
@@ -205,8 +207,10 @@ def _calc_angle(point1, center, point2):
 
 def _rotate(point, center, rad):
 
-    x = ((point[0] - center[0]) * np.cos(rad)) - ((point[1] - center[1]) * np.sin(rad)) + center[0];
-    y = ((point[0] - center[0]) * np.sin(rad)) + ((point[1] - center[1]) * np.cos(rad)) + center[1];
+    # print(point)
+
+    x = ((point[0] - center[0]) * np.cos(rad)) - ((point[1] - center[1]) * np.sin(rad)) + center[0]
+    y = ((point[0] - center[0]) * np.sin(rad)) + ((point[1] - center[1]) * np.cos(rad)) + center[1]
 
     if len(point) == 3:
         return [int(x), int(y), point[2]] # for keypoints with score
@@ -409,6 +413,7 @@ def _rotate_to_vertical_pose(segments_xy):
 
 def _rotate_head_around_centroid(segm_xy, keypoint1_ref, keypoint2_ref):
 
+    # midpoint of vertical line and horizontal line
     centroid = _segments_xy_centroid(segm_xy)
 
     rad, deg = _calc_angle(centroid, keypoint1_ref, keypoint2_ref)
@@ -467,7 +472,7 @@ def _rotate_to_tpose(segments_xy):
     lhip_keypoint = segments_xy['Torso']['keypoints']['LHip']
 
 
-    # update midhip keypoint = mid torso point
+    # update midhip keypoint = (midhip + neck) / 2
     if 'Torso' in segments_xy and len(segments_xy['Torso']['segm_xy']) > 0:
         segments_xy['Torso']['keypoints']['MidHip'] =  _keypoints_midpoint(neck_keypoint, midhip_keypoint)
 
@@ -1008,6 +1013,65 @@ def _dilate_segm_to_convex(image, segm_id, segm_xy, bbox_xywh):
     image[int(min_y-margin+bbox_y):int(max_y+margin+bbox_y), int(min_x-margin+bbox_x):int(max_x+margin+bbox_x), :][cond_bg] = img_bg[cond_bg]
 
 
+def _get_min_bounding_rect(points):
+    """
+    Find the smallest bounding rectangle for a set of points.
+    Returns a set of points representing the corners of the bounding box.
+    """
+
+    pi2 = np.pi/2.
+
+    # get the convex hull for the points
+    hull_points = points[ConvexHull(points).vertices]
+
+    # calculate edge angles
+    edges = np.zeros((len(hull_points)-1, 2))
+    edges = hull_points[1:] - hull_points[:-1]
+
+    angles = np.zeros((len(edges)))
+    angles = np.arctan2(edges[:, 1], edges[:, 0])
+
+    angles = np.abs(np.mod(angles, pi2))
+    angles = np.unique(angles)
+
+    # find rotation matrices
+    rotations = np.vstack([
+        np.cos(angles),
+        np.cos(angles-pi2),
+        np.cos(angles+pi2),
+        np.cos(angles)]).T
+
+    rotations = rotations.reshape((-1, 2, 2))
+
+    # apply rotations to the hull
+    rot_points = np.dot(rotations, hull_points.T)
+
+    # find the bounding points
+    min_x = np.nanmin(rot_points[:, 0], axis=1)
+    max_x = np.nanmax(rot_points[:, 0], axis=1)
+    min_y = np.nanmin(rot_points[:, 1], axis=1)
+    max_y = np.nanmax(rot_points[:, 1], axis=1)
+
+    # find the box with the best area
+    areas = (max_x - min_x) * (max_y - min_y)
+    best_idx = np.argmin(areas)
+
+    # return the best box
+    x1 = max_x[best_idx]
+    x2 = min_x[best_idx]
+    y1 = max_y[best_idx]
+    y2 = min_y[best_idx]
+    r = rotations[best_idx]
+
+    rval = np.zeros((4, 2))
+    rval[0] = np.dot([x1, y2], r)
+    rval[1] = np.dot([x2, y2], r)
+    rval[2] = np.dot([x2, y1], r)
+    rval[3] = np.dot([x1, y1], r)
+
+    return rval
+
+
 def _dilate_segm_to_rect(image, segm_id, segm_xy, bbox_xywh):
 
     # test each segment
@@ -1018,20 +1082,31 @@ def _dilate_segm_to_rect(image, segm_id, segm_xy, bbox_xywh):
     segm_xy = np.array(_remove_outlier(segm_xy=segm_xy)).astype(int)
     print('After removing outliers:', len(segm_xy))
 
-    min_x, min_y = np.min(segm_xy, axis=0).astype(int)
-    max_x, max_y = np.max(segm_xy, axis=0).astype(int)
+    # get the minimum bounding rectangle of segm_xy
+    rect_xy = _get_min_bounding_rect(segm_xy)
+
+    min_x, min_y = np.min(rect_xy, axis=0).astype(int)
+    max_x, max_y = np.max(rect_xy, axis=0).astype(int)
 
     w = int(max_x - min_x)
     h = int(max_y - min_y)
 
     img_bg = np.empty((h, w, 4), np.uint8)
     img_bg.fill(255)
-    img_bg[:, :] = COARSE_TO_COLOR[segm_id]
+    img_bg[:, :, 3] = 0  # alpha channel = 0 -> transparent
+
+    # fit in the coordinate of img_bg
+    contours = [[int(x - min_x), int(y - min_y)] for x, y in rect_xy]
+    contours = np.array(contours, np.int32)
+    # convex hull = rectangle
+    cv2.fillConvexPoly(img_bg, cv2.convexHull(contours), color=COARSE_TO_COLOR[segm_id])
 
     # translate from the bbox's coordinate to the image's coordinate
     bbox_x, bbox_y, bbox_w, bbox_h = bbox_xywh
 
-    image[int(min_y+bbox_y):int(max_y+bbox_y), int(min_x+bbox_x):int(max_x+bbox_x), :] = img_bg
+    cond_bg = img_bg[:, :, 3] > 0  # condition for already-drawn segment pixels
+
+    image[int(min_y + bbox_y):int(max_y + bbox_y), int(min_x + bbox_x):int(max_x + bbox_x), :][cond_bg] = img_bg[cond_bg]
 
 
 def dilate_segm(image, mask, segm, bbox_xywh, keypoints, infile, is_rect, show):
@@ -1054,7 +1129,8 @@ def dilate_segm(image, mask, segm, bbox_xywh, keypoints, infile, is_rect, show):
 
 
     # draw segments in the original image
-    if 'Head' in segments_xy:
+    if 'Head' in segments_xy and 'Torso' in segments_xy:
+
         dispatcher['dilate_function'](image=image,
                                       segm_id='Head',
                                       segm_xy=segments_xy['Head']['segm_xy'],
@@ -1062,6 +1138,7 @@ def dilate_segm(image, mask, segm, bbox_xywh, keypoints, infile, is_rect, show):
 
     # torso
     if 'Torso' in segments_xy:
+
         dispatcher['dilate_function'](image=image,
                                       segm_id='Torso',
                                       segm_xy=segments_xy['Torso']['segm_xy'],
@@ -1069,24 +1146,28 @@ def dilate_segm(image, mask, segm, bbox_xywh, keypoints, infile, is_rect, show):
 
     # upper limbs
     if 'RUpperArm' in segments_xy:
+
         dispatcher['dilate_function'](image=image,
                                       segm_id='RUpperArm',
                                       segm_xy=segments_xy['RUpperArm']['segm_xy'],
                                       bbox_xywh=bbox_xywh)
 
     if 'RLowerArm' in segments_xy:
+
         dispatcher['dilate_function'](image=image,
                                       segm_id='RLowerArm',
                                       segm_xy=segments_xy['RLowerArm']['segm_xy'],
                                       bbox_xywh=bbox_xywh)
 
     if 'LUpperArm' in segments_xy:
+
         dispatcher['dilate_function'](image=image,
                                       segm_id='LUpperArm',
                                       segm_xy=segments_xy['LUpperArm']['segm_xy'],
                                       bbox_xywh=bbox_xywh)
 
     if 'LLowerArm' in segments_xy:
+
         dispatcher['dilate_function'](image=image,
                                       segm_id='LLowerArm',
                                       segm_xy=segments_xy['LLowerArm']['segm_xy'],
@@ -1094,24 +1175,28 @@ def dilate_segm(image, mask, segm, bbox_xywh, keypoints, infile, is_rect, show):
 
     # lower limbs
     if 'RThigh' in segments_xy:
+
         dispatcher['dilate_function'](image=image,
                                       segm_id='RThigh',
                                       segm_xy=segments_xy['RThigh']['segm_xy'],
                                       bbox_xywh=bbox_xywh)
 
     if 'RCalf' in segments_xy:
+
         dispatcher['dilate_function'](image=image,
                                       segm_id='RCalf',
                                       segm_xy=segments_xy['RCalf']['segm_xy'],
                                       bbox_xywh=bbox_xywh)
 
     if 'LThigh' in segments_xy:
+
         dispatcher['dilate_function'](image=image,
                                       segm_id='LThigh',
                                       segm_xy=segments_xy['LThigh']['segm_xy'],
                                       bbox_xywh=bbox_xywh)
 
     if 'LCalf' in segments_xy:
+
         dispatcher['dilate_function'](image=image,
                                       segm_id='LCalf',
                                       segm_xy=segments_xy['LCalf']['segm_xy'],
