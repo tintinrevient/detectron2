@@ -460,8 +460,8 @@ def extract_contour_on_vitruve():
     arm_line_upper_y = int(arm_line_y - arm_half_width)
     arm_line_lower_y = int(arm_line_y + arm_half_width)
 
-    right_leg_x = 282
-    left_leg_x = 330
+    right_leg_x = 288
+    left_leg_x = 336
     leg_half_width = 20
 
     right_leg_line_left_x = int(right_leg_x - leg_half_width)

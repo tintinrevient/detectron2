@@ -645,7 +645,7 @@ def _remove_outlier(segm_xy):
     return segm_xy_without_outliers
 
 
-def _translate_and_scale_segm_to_convex(image, segm_id, segm_xy, keypoint, ref_point, is_man, scaler):
+def _translate_and_scale_segm_to_convex(image, segm_id, segm_xy, keypoint, ref_point, is_man, is_rect_symmetrical, scaler):
 
     # test each segment
     # print('Segment ID:', segm_id)
@@ -669,8 +669,12 @@ def _translate_and_scale_segm_to_convex(image, segm_id, segm_xy, keypoint, ref_p
 
     # fill the segment with the segment color
     contours = [[int(x - min_x + margin), int(y - min_y + margin)] for x, y in segm_xy]
+    # option 1 - convex hull of [x, y]
     contours = np.array(contours, np.int32)
     cv2.fillConvexPoly(img_bg, cv2.convexHull(contours), color=COARSE_TO_COLOR[segm_id])
+    # option 2 - dots on [x, y]
+    # for x, y in contours:
+    #     cv2.circle(img_bg, (x, y), color=COARSE_TO_COLOR[segm_id], radius=2, thickness=-2)
 
     # assumption: head_radius = 31 -> head_height = 31*2 = 62 -> men; 58 -> women
     if segm_id == 'Head' and h > 0:
@@ -682,26 +686,26 @@ def _translate_and_scale_segm_to_convex(image, segm_id, segm_xy, keypoint, ref_p
     img_bg = cv2.resize(img_bg, (int(w * scaler), int(h * scaler)), cv2.INTER_LINEAR)
     h, w, _ = img_bg.shape
 
-    # dilate within contour - option 2
-    # img_bg[img_bg[:, :, 3] == 0] = (0, 0, 0, 0)
-    # kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (10, 10))
-    # img_bg = cv2.morphologyEx(img_bg, cv2.MORPH_CLOSE, kernel)
-    # img_bg[img_bg[:, :, 3] == 0] = (255, 255, 255, 0)
-
+    # midpoint [x, y] in the scaled coordinates of img_bg
     # distance between the center point and the left/upper boundaries
-    keypoint_x, keypoint_y = ((np.array(keypoint)[0:2] - np.array([min_x, min_y]) + np.array([margin, margin])) * scaler).astype(int)
+    midpoint_x, midpoint_y = ((np.array(keypoint)[0:2] - np.array([min_x, min_y]) + np.array([margin, margin])) * scaler).astype(int)
 
     x, y = ref_point
-    min_x = int(x - keypoint_x)
-    max_x = int(x + w - keypoint_x)
-    min_y = int(y - keypoint_y)
-    max_y = int(y + h - keypoint_y)
+    min_x = int(x - midpoint_x)
+    max_x = int(x + w - midpoint_x)
+    min_y = int(y - midpoint_y)
+    max_y = int(y + h - midpoint_y)
 
     cond_bg = img_bg[:, :, 3] > 0  # condition for already-drawn segment pixels
-    image[min_y:max_y, min_x:max_x, :][cond_bg] = img_bg[cond_bg]
+
+    try:
+        image[min_y:max_y, min_x:max_x, :][cond_bg] = img_bg[cond_bg]
+    except:
+        if segm_id == 'Head':
+            return scaler
 
     # test each segment
-    # cv2.circle(img_bg, (keypoint_x, keypoint_y), radius=5,color=(255, 255, 0), thickness=-1)
+    # cv2.circle(img_bg, (midpoint_x, midpoint_y), radius=5,color=(255, 255, 0), thickness=-1)
     # cv2.imshow('test', img_bg)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
@@ -710,7 +714,104 @@ def _translate_and_scale_segm_to_convex(image, segm_id, segm_xy, keypoint, ref_p
         return scaler
 
 
-def _translate_and_scale_segm_to_rect(image, segm_id, segm_xy, keypoint, ref_point, is_man, scaler):
+def _symmetrize_rect_segm(segm_id, w, h, midpoint_x, midpoint_y):
+
+    if segm_id == 'Head':
+        segm_symmetry_dict['Head'] = (w, h)
+
+    else:
+
+        if midpoint_x < w/2:
+            w = int((w - midpoint_x) * 2)
+        else:
+            w = int(midpoint_x * 2)
+
+        if midpoint_y < h/2:
+            h = int((h - midpoint_y) * 2)
+        else:
+            h = int(midpoint_y * 2)
+
+        if segm_id == 'Torso':
+            segm_symmetry_dict['Torso'] = (w, h)
+
+        elif segm_id == 'RUpperArm':
+            segm_symmetry_dict['RUpperArm'] = (w, h)
+
+        elif segm_id == 'RLowerArm':
+            segm_symmetry_dict['RLowerArm'] = (w, h)
+
+        elif segm_id == 'LUpperArm':
+
+            ref_w, ref_h = segm_symmetry_dict['RUpperArm']
+
+            if w < ref_w:
+                segm_symmetry_dict['LUpperArm'] = segm_symmetry_dict['RUpperArm']
+            else:
+                segm_symmetry_dict['LUpperArm'] = (w, h)
+                segm_symmetry_dict['RUpperArm'] = (w, h)
+
+        elif segm_id == 'LLowerArm':
+
+            ref_w, ref_h = segm_symmetry_dict['RLowerArm']
+
+            if w < ref_w:
+                segm_symmetry_dict['LLowerArm'] = segm_symmetry_dict['RLowerArm']
+            else:
+                segm_symmetry_dict['LLowerArm'] = (w, h)
+                segm_symmetry_dict['RLowerArm'] = (w, h)
+
+        elif segm_id == 'RThigh':
+            segm_symmetry_dict['RThigh'] = (w, h)
+
+        elif segm_id == 'RCalf':
+            segm_symmetry_dict['RCalf'] = (w, h)
+
+        elif segm_id == 'LThigh':
+
+            ref_w, ref_h = segm_symmetry_dict['RThigh']
+
+            if h < ref_h:
+                segm_symmetry_dict['LThigh'] = segm_symmetry_dict['RThigh']
+            else:
+                segm_symmetry_dict['LThigh'] = (w, h)
+                segm_symmetry_dict['RThigh'] = (w, h)
+
+        elif segm_id == 'LCalf':
+
+            ref_w, ref_h = segm_symmetry_dict['RCalf']
+
+            if h < ref_h:
+                segm_symmetry_dict['LCalf'] = segm_symmetry_dict['RCalf']
+            else:
+                segm_symmetry_dict['LCalf'] = (w, h)
+                segm_symmetry_dict['RCalf'] = (w, h)
+
+
+def _draw_symmetrical_rect_segm(image, segm_id, w_and_h, ref_point):
+
+    w, h = w_and_h
+
+    img_bg = np.empty((h, w, 4), np.uint8)
+    img_bg.fill(255)
+    img_bg[:, :] = COARSE_TO_COLOR[segm_id]
+
+    midpoint_x = w / 2
+    midpoint_y = h / 2
+
+    x, y = ref_point
+    min_x = int(x - midpoint_x)
+    max_x = int(x + midpoint_x)
+    min_y = int(y - midpoint_y)
+    max_y = int(y + midpoint_y)
+
+    try:
+        added_image = cv2.addWeighted(image[min_y:max_y, min_x:max_x, :], 0.1, img_bg, 0.9, 0)
+        image[min_y:max_y, min_x:max_x, :] = added_image
+    except:
+        pass
+
+
+def _translate_and_scale_segm_to_rect(image, segm_id, segm_xy, keypoint, ref_point, is_man, is_rect_symmetrical, scaler):
 
     # test each segment
     # print('Segment ID:', segm_id)
@@ -739,28 +840,37 @@ def _translate_and_scale_segm_to_rect(image, segm_id, segm_xy, keypoint, ref_poi
     img_bg = cv2.resize(img_bg, (int(w * scaler), int(h * scaler)), cv2.INTER_LINEAR)
     h, w, _ = img_bg.shape
 
+    # midpoint [x, y] in the scaled coordinates of img_bg
     # distance between the center point and the left/upper boundaries
-    keypoint_x, keypoint_y = ((np.array(keypoint)[0:2] - np.array([min_x, min_y])) * scaler).astype(int)
+    midpoint_x, midpoint_y = ((np.array(keypoint)[0:2] - np.array([min_x, min_y])) * scaler).astype(int)
 
-    x, y = ref_point
-    min_x = int(x - keypoint_x)
-    max_x = int(x + w - keypoint_x)
-    min_y = int(y - keypoint_y)
-    max_y = int(y + h - keypoint_y)
+    if is_rect_symmetrical:
+        _symmetrize_rect_segm(segm_id=segm_id, w=w, h=h, midpoint_x=midpoint_x, midpoint_y=midpoint_y)
 
-    image[min_y:max_y, min_x:max_x, :] = img_bg
+    else:
+        x, y = ref_point
+        min_x = int(x - midpoint_x)
+        max_x = int(x + w - midpoint_x)
+        min_y = int(y - midpoint_y)
+        max_y = int(y + h - midpoint_y)
 
-    # test each segment
-    # cv2.circle(img_bg, (keypoint_x, keypoint_y), radius=5,color=(255, 255, 0), thickness=-1)
-    # cv2.imshow('test', img_bg)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
+        try:
+            image[min_y:max_y, min_x:max_x, :] = img_bg
+        except:
+            if segm_id == 'Head':
+                return scaler
+
+                # test each segment
+                # cv2.circle(img_bg, (midpoint_x, midpoint_y), radius=5,color=(255, 255, 0), thickness=-1)
+                # cv2.imshow('test', img_bg)
+                # cv2.waitKey(0)
+                # cv2.destroyAllWindows()
 
     if segm_id == 'Head':
         return scaler
 
 
-def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man):
+def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man, is_rect_symmetrical):
 
     if is_vitruve:
         # normalized image = (624, 624, 4)
@@ -792,8 +902,8 @@ def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man):
     # [x, y]
     mid_x = 312
     arm_line_y = 217
-    right_leg_x = 282
-    left_leg_x = 330
+    right_leg_x = 288
+    left_leg_x = 336
 
     norm_nose_xy = [mid_x, 146]
     norm_mid_torso_xy = [mid_x, 281]
@@ -831,7 +941,8 @@ def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man):
                                              segm_id='Head', segm_xy=segments_xy['Head']['segm_xy'],
                                              keypoint=segments_xy['Head']['keypoints']['Nose'],
                                              ref_point=norm_nose_xy,
-                                             is_man=is_man, scaler=None)
+                                             is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                             scaler=None)
 
     # torso
     if 'Torso' in segments_xy:
@@ -840,7 +951,8 @@ def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man):
                                     segm_xy=segments_xy['Torso']['segm_xy'],
                                     keypoint=segments_xy['Torso']['keypoints']['MidHip'],
                                     ref_point=norm_mid_torso_xy,
-                                    is_man=is_man, scaler=scaler)
+                                    is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                    scaler=scaler)
 
     # upper limbs
     if 'RUpperArm' in segments_xy:
@@ -849,7 +961,8 @@ def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man):
                                     segm_xy=segments_xy['RUpperArm']['segm_xy'],
                                     keypoint=segments_xy['RUpperArm']['keypoints']['RElbow'],
                                     ref_point=norm_mid_rupper_arm_xy,
-                                    is_man=is_man, scaler=scaler)
+                                    is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                    scaler=scaler)
 
     if 'RLowerArm' in segments_xy:
         dispatcher['segm_function'](image=image,
@@ -857,7 +970,8 @@ def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man):
                                     segm_xy=segments_xy['RLowerArm']['segm_xy'],
                                     keypoint=segments_xy['RLowerArm']['keypoints']['RWrist'],
                                     ref_point=norm_mid_rlower_arm_xy,
-                                    is_man=is_man, scaler=scaler)
+                                    is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                    scaler=scaler)
 
     if 'LUpperArm' in segments_xy:
         dispatcher['segm_function'](image=image,
@@ -865,7 +979,8 @@ def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man):
                                     segm_xy=segments_xy['LUpperArm']['segm_xy'],
                                     keypoint=segments_xy['LUpperArm']['keypoints']['LElbow'],
                                     ref_point=norm_mid_lupper_arm_xy,
-                                    is_man=is_man, scaler=scaler)
+                                    is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                    scaler=scaler)
 
     if 'LLowerArm' in segments_xy:
         dispatcher['segm_function'](image=image,
@@ -873,7 +988,8 @@ def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man):
                                     segm_xy=segments_xy['LLowerArm']['segm_xy'],
                                     keypoint=segments_xy['LLowerArm']['keypoints']['LWrist'],
                                     ref_point=norm_mid_llower_arm_xy,
-                                    is_man=is_man, scaler=scaler)
+                                    is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                    scaler=scaler)
 
     # lower limbs
     if 'RThigh' in segments_xy:
@@ -882,7 +998,8 @@ def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man):
                                     segm_xy=segments_xy['RThigh']['segm_xy'],
                                     keypoint=segments_xy['RThigh']['keypoints']['RKnee'],
                                     ref_point=norm_mid_rthigh_xy,
-                                    is_man=is_man, scaler=scaler)
+                                    is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                    scaler=scaler)
 
     if 'RCalf' in segments_xy:
         dispatcher['segm_function'](image=image,
@@ -890,7 +1007,8 @@ def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man):
                                     segm_xy=segments_xy['RCalf']['segm_xy'],
                                     keypoint=segments_xy['RCalf']['keypoints']['RAnkle'],
                                     ref_point=norm_mid_rcalf_xy,
-                                    is_man=is_man, scaler=scaler)
+                                    is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                    scaler=scaler)
 
     if 'LThigh' in segments_xy:
         dispatcher['segm_function'](image=image,
@@ -898,7 +1016,8 @@ def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man):
                                     segm_xy=segments_xy['LThigh']['segm_xy'],
                                     keypoint=segments_xy['LThigh']['keypoints']['LKnee'],
                                     ref_point=norm_mid_lthigh_xy,
-                                    is_man=is_man, scaler=scaler)
+                                    is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                    scaler=scaler)
 
     if 'LCalf' in segments_xy:
         dispatcher['segm_function'](image=image,
@@ -906,7 +1025,38 @@ def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man):
                                     segm_xy=segments_xy['LCalf']['segm_xy'],
                                     keypoint=segments_xy['LCalf']['keypoints']['LAnkle'],
                                     ref_point=norm_mid_lcalf_xy,
-                                    is_man=is_man, scaler=scaler)
+                                    is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                    scaler=scaler)
+
+    # draw the segments at last, after the symmetry of all segments has been checked
+    if is_rect_symmetrical:
+        # head
+        _draw_symmetrical_rect_segm(image=image, segm_id='Head', w_and_h=segm_symmetry_dict['Head'],
+                                    ref_point=norm_nose_xy)
+
+        # torso
+        _draw_symmetrical_rect_segm(image=image, segm_id='Torso', w_and_h=segm_symmetry_dict['Torso'],
+                                    ref_point=norm_mid_torso_xy)
+
+        # arms
+        _draw_symmetrical_rect_segm(image=image, segm_id='RUpperArm', w_and_h=segm_symmetry_dict['RUpperArm'],
+                                    ref_point=norm_mid_rupper_arm_xy)
+        _draw_symmetrical_rect_segm(image=image, segm_id='RLowerArm', w_and_h=segm_symmetry_dict['RLowerArm'],
+                                    ref_point=norm_mid_rlower_arm_xy)
+        _draw_symmetrical_rect_segm(image=image, segm_id='LUpperArm', w_and_h=segm_symmetry_dict['LUpperArm'],
+                                    ref_point=norm_mid_lupper_arm_xy)
+        _draw_symmetrical_rect_segm(image=image, segm_id='LLowerArm', w_and_h=segm_symmetry_dict['LLowerArm'],
+                                    ref_point=norm_mid_llower_arm_xy)
+
+        # legs
+        _draw_symmetrical_rect_segm(image=image, segm_id='RThigh', w_and_h=segm_symmetry_dict['RThigh'],
+                                    ref_point=norm_mid_rthigh_xy)
+        _draw_symmetrical_rect_segm(image=image, segm_id='RCalf', w_and_h=segm_symmetry_dict['RCalf'],
+                                    ref_point=norm_mid_rcalf_xy)
+        _draw_symmetrical_rect_segm(image=image, segm_id='LThigh', w_and_h=segm_symmetry_dict['LThigh'],
+                                    ref_point=norm_mid_lthigh_xy)
+        _draw_symmetrical_rect_segm(image=image, segm_id='LCalf', w_and_h=segm_symmetry_dict['LCalf'],
+                                    ref_point=norm_mid_lcalf_xy)
 
     # draw centers
     # head center
@@ -930,7 +1080,7 @@ def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man):
     return image
 
 
-def visualize_norm_segm(image_bg, mask, segm, bbox_xywh, keypoints, infile, is_vitruve, is_rect, is_man, show=False):
+def visualize_norm_segm(image_bg, mask, segm, bbox_xywh, keypoints, infile, is_vitruve, is_rect, is_man, is_rect_symmetrical, show=False):
 
     x, y, w, h = [int(v) for v in bbox_xywh]
 
@@ -961,10 +1111,11 @@ def visualize_norm_segm(image_bg, mask, segm, bbox_xywh, keypoints, infile, is_v
     segments_xy = rotate_segments_xy(segm=segm, keypoints=keypoints)
 
     # draw segments in normalized image
-    image = draw_segments_xy(segments_xy=segments_xy, is_vitruve=is_vitruve, is_rect=is_rect, is_man=is_man)
+    image = draw_segments_xy(segments_xy=segments_xy, is_vitruve=is_vitruve,
+                             is_rect=is_rect, is_man=is_man, is_rect_symmetrical=is_rect_symmetrical)
 
     if show:
-        outfile = generate_norm_segm_outfile(infile)
+        outfile = generate_norm_segm_outfile(infile, is_rect)
         cv2.imwrite(outfile, image)
         print('output', outfile)
 
@@ -973,7 +1124,7 @@ def visualize_norm_segm(image_bg, mask, segm, bbox_xywh, keypoints, infile, is_v
         cv2.waitKey(0)
         cv2.destroyAllWindows()
     else:
-        outfile = generate_norm_segm_outfile(infile)
+        outfile = generate_norm_segm_outfile(infile, is_rect)
         cv2.imwrite(outfile, image)
         print('output', outfile)
 
@@ -1008,9 +1159,9 @@ def _dilate_segm_to_convex(image, segm_id, segm_xy, bbox_xywh):
     # translate from the bbox's coordinate to the image's coordinate
     bbox_x, bbox_y, bbox_w, bbox_h = bbox_xywh
 
+    # stack two images
     cond_bg = img_bg[:, :, 3] > 0  # condition for already-drawn segment pixels
-
-    image[int(min_y-margin+bbox_y):int(max_y+margin+bbox_y), int(min_x-margin+bbox_x):int(max_x+margin+bbox_x), :][cond_bg] = img_bg[cond_bg]
+    image[int(min_y - margin + bbox_y):int(max_y + margin + bbox_y), int(min_x - margin + bbox_x):int(max_x + margin + bbox_x), :][cond_bg] = img_bg[cond_bg]
 
 
 def _get_min_bounding_rect(points):
@@ -1104,8 +1255,8 @@ def _dilate_segm_to_rect(image, segm_id, segm_xy, bbox_xywh):
     # translate from the bbox's coordinate to the image's coordinate
     bbox_x, bbox_y, bbox_w, bbox_h = bbox_xywh
 
+    # stack two images
     cond_bg = img_bg[:, :, 3] > 0  # condition for already-drawn segment pixels
-
     image[int(min_y + bbox_y):int(max_y + bbox_y), int(min_x + bbox_x):int(max_x + bbox_x), :][cond_bg] = img_bg[cond_bg]
 
 
@@ -1205,7 +1356,7 @@ def dilate_segm(image, mask, segm, bbox_xywh, keypoints, infile, is_rect, show):
     added_image = cv2.addWeighted(image_overlay, 0.5, image, 0.5, 0)
 
     if show:
-        outfile = generate_dilated_segm_outfile(infile)
+        outfile = generate_dilated_segm_outfile(infile, is_rect)
         cv2.imwrite(outfile, added_image)
         print('output', outfile)
 
@@ -1214,7 +1365,7 @@ def dilate_segm(image, mask, segm, bbox_xywh, keypoints, infile, is_rect, show):
         cv2.waitKey(0)
         cv2.destroyAllWindows()
     else:
-        outfile = generate_dilated_segm_outfile(infile)
+        outfile = generate_dilated_segm_outfile(infile, is_rect)
         cv2.imwrite(outfile, added_image)
         print('output', outfile)
 
@@ -1283,7 +1434,7 @@ def stitch_data(results_densepose, boxes_xywh, data_keypoints, image, show):
     return matched_results_densepose, matched_boxes_xywh, matched_data_keypoints
 
 
-def generate_norm_segm(infile, score_cutoff, is_vitruve, is_rect, is_man, show):
+def generate_norm_segm(infile, score_cutoff, is_vitruve, is_rect, is_man, is_rect_symmetrical, show):
 
     print('input:', infile)
 
@@ -1332,12 +1483,13 @@ def generate_norm_segm(infile, score_cutoff, is_vitruve, is_rect, is_man, show):
 
             # visualizer
             visualize_norm_segm(image_bg=im_gray, mask=mask, segm=segm, bbox_xywh=box_xywh, keypoints=keypoints, infile=infile,
-                                is_vitruve=is_vitruve, is_rect=is_rect, is_man=is_man, show=show)
+                                is_vitruve=is_vitruve, is_rect=is_rect, is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                show=show)
         else:
             continue
 
 
-def generate_norm_segm_outfile(infile):
+def generate_norm_segm_outfile(infile, is_rect):
 
     outdir = os.path.join(norm_segm_dir, infile[infile.find('/') + 1:infile.rfind('/')])
 
@@ -1345,12 +1497,16 @@ def generate_norm_segm_outfile(infile):
         os.makedirs(outdir)
 
     fname = infile[infile.find('/') + 1:infile.rfind('.')]
-    outfile = os.path.join(norm_segm_dir, '{}_norm.jpg'.format(fname))
+
+    if is_rect:
+        outfile = os.path.join(norm_segm_dir, '{}_norm_rect.jpg'.format(fname))
+    else:
+        outfile = os.path.join(norm_segm_dir, '{}_norm_convex.jpg'.format(fname))
 
     return outfile
 
 
-def generate_dilated_segm_outfile(infile):
+def generate_dilated_segm_outfile(infile, is_rect):
 
     outdir = os.path.join(norm_segm_dir, infile[infile.find('/') + 1:infile.rfind('/')])
 
@@ -1358,7 +1514,11 @@ def generate_dilated_segm_outfile(infile):
         os.makedirs(outdir)
 
     fname = infile[infile.find('/') + 1:infile.rfind('.')]
-    outfile = os.path.join(norm_segm_dir, '{}_dilated.jpg'.format(fname))
+
+    if is_rect:
+        outfile = os.path.join(norm_segm_dir, '{}_dilated_rect.jpg'.format(fname))
+    else:
+        outfile = os.path.join(norm_segm_dir, '{}_dilated_convex.jpg'.format(fname))
 
     return outfile
 
@@ -1453,7 +1613,7 @@ if __name__ == '__main__':
     # example cases
     # modern
     # python infer_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg --gender woman --output norm
-    # python infer_segm.py --input datasets/modern/Paul\ Gauguin/14206.jpg --gender woman --output norm
+    # python infer_segm.py --input datasets/modern/Paul\ Gauguin/30963.jpg --gender woman --output norm
 
     # classical
     # python infer_segm.py --input datasets/classical/Michelangelo/12758.jpg --gender man --output norm
@@ -1492,12 +1652,15 @@ if __name__ == '__main__':
     elif args.gender == 'woman':
         is_man = False
 
+    # store w + h for symmetrical segments
+    segm_symmetry_dict = {}
+
     if os.path.isfile(args.input):
         if args.output == 'segm':
             generate_segm(infile=args.input, score_cutoff=0.95, show=True)
         elif args.output == 'norm':
             generate_norm_segm(infile=args.input, score_cutoff=0.95,
-                               is_vitruve=False, is_rect=True, is_man=is_man,
+                               is_vitruve=False, is_rect=True, is_man=is_man, is_rect_symmetrical=True,
                                show=True)
 
     elif os.path.isdir(args.input):
@@ -1507,7 +1670,7 @@ if __name__ == '__main__':
                     generate_segm(infile=str(path), score_cutoff=0.9, show=False)
                 elif args.output == 'norm':
                     generate_norm_segm(infile=args.input, score_cutoff=0.95,
-                                       is_vitruve=False, is_rect=True, is_man=is_man,
+                                       is_vitruve=False, is_rect=True, is_man=is_man, is_rect_symmetrical=False,
                                        show=False)
             except:
                 continue
