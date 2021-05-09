@@ -645,7 +645,7 @@ def _remove_outlier(segm_xy):
     return segm_xy_without_outliers
 
 
-def _translate_and_scale_segm_to_convex(image, segm_id, segm_xy, keypoint, ref_point, is_man, is_rect_symmetrical, scaler):
+def _translate_and_scale_segm_to_convex(image, segm_id, segm_xy, keypoint, ref_point, is_man, is_rect_symmetrical, segm_symmetry_dict, scaler):
 
     # test each segment
     # print('Segment ID:', segm_id)
@@ -711,10 +711,12 @@ def _translate_and_scale_segm_to_convex(image, segm_id, segm_xy, keypoint, ref_p
     # cv2.destroyAllWindows()
 
     if segm_id == 'Head':
-        return scaler
+        return scaler, None
+    else:
+        return None
 
 
-def _symmetrize_rect_segm(segm_id, w, h, midpoint_x, midpoint_y):
+def _symmetrize_rect_segm(segm_id, w, h, midpoint_x, midpoint_y, segm_symmetry_dict):
 
     if segm_id == 'Head':
         segm_symmetry_dict['Head'] = (w, h)
@@ -811,7 +813,7 @@ def _draw_symmetrical_rect_segm(image, segm_id, w_and_h, ref_point):
         pass
 
 
-def _translate_and_scale_segm_to_rect(image, segm_id, segm_xy, keypoint, ref_point, is_man, is_rect_symmetrical, scaler):
+def _translate_and_scale_segm_to_rect(image, segm_id, segm_xy, keypoint, ref_point, is_man, is_rect_symmetrical, segm_symmetry_dict, scaler):
 
     # test each segment
     # print('Segment ID:', segm_id)
@@ -845,7 +847,7 @@ def _translate_and_scale_segm_to_rect(image, segm_id, segm_xy, keypoint, ref_poi
     midpoint_x, midpoint_y = ((np.array(keypoint)[0:2] - np.array([min_x, min_y])) * scaler).astype(int)
 
     if is_rect_symmetrical:
-        _symmetrize_rect_segm(segm_id=segm_id, w=w, h=h, midpoint_x=midpoint_x, midpoint_y=midpoint_y)
+        _symmetrize_rect_segm(segm_id=segm_id, w=w, h=h, midpoint_x=midpoint_x, midpoint_y=midpoint_y, segm_symmetry_dict=segm_symmetry_dict)
 
     else:
         x, y = ref_point
@@ -867,10 +869,14 @@ def _translate_and_scale_segm_to_rect(image, segm_id, segm_xy, keypoint, ref_poi
                 # cv2.destroyAllWindows()
 
     if segm_id == 'Head':
-        return scaler
+        return scaler, segm_symmetry_dict
+    else:
+        return segm_symmetry_dict
 
 
 def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man, is_rect_symmetrical):
+
+    segm_symmetry_dict = {}
 
     if is_vitruve:
         # normalized image = (624, 624, 4)
@@ -937,95 +943,115 @@ def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man, is_rect_symmetric
     # translate first, scale second!
     # head
     if 'Head' in segments_xy:
-        scaler = dispatcher['segm_function'](image=image,
+        scaler, segm_symmetry_dict = dispatcher['segm_function'](image=image,
                                              segm_id='Head', segm_xy=segments_xy['Head']['segm_xy'],
                                              keypoint=segments_xy['Head']['keypoints']['Nose'],
                                              ref_point=norm_nose_xy,
-                                             is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                             is_man=is_man,
+                                             is_rect_symmetrical=is_rect_symmetrical,
+                                             segm_symmetry_dict=segm_symmetry_dict,
                                              scaler=None)
 
     # torso
     if 'Torso' in segments_xy:
-        dispatcher['segm_function'](image=image,
+        segm_symmetry_dict = dispatcher['segm_function'](image=image,
                                     segm_id='Torso',
                                     segm_xy=segments_xy['Torso']['segm_xy'],
                                     keypoint=segments_xy['Torso']['keypoints']['MidHip'],
                                     ref_point=norm_mid_torso_xy,
-                                    is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                    is_man=is_man,
+                                    is_rect_symmetrical=is_rect_symmetrical,
+                                    segm_symmetry_dict=segm_symmetry_dict,
                                     scaler=scaler)
 
     # upper limbs
     if 'RUpperArm' in segments_xy:
-        dispatcher['segm_function'](image=image,
+        segm_symmetry_dict = dispatcher['segm_function'](image=image,
                                     segm_id='RUpperArm',
                                     segm_xy=segments_xy['RUpperArm']['segm_xy'],
                                     keypoint=segments_xy['RUpperArm']['keypoints']['RElbow'],
                                     ref_point=norm_mid_rupper_arm_xy,
-                                    is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                    is_man=is_man,
+                                    is_rect_symmetrical=is_rect_symmetrical,
+                                    segm_symmetry_dict=segm_symmetry_dict,
                                     scaler=scaler)
 
     if 'RLowerArm' in segments_xy:
-        dispatcher['segm_function'](image=image,
+        segm_symmetry_dict = dispatcher['segm_function'](image=image,
                                     segm_id='RLowerArm',
                                     segm_xy=segments_xy['RLowerArm']['segm_xy'],
                                     keypoint=segments_xy['RLowerArm']['keypoints']['RWrist'],
                                     ref_point=norm_mid_rlower_arm_xy,
-                                    is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                    is_man=is_man,
+                                    is_rect_symmetrical=is_rect_symmetrical,
+                                    segm_symmetry_dict=segm_symmetry_dict,
                                     scaler=scaler)
 
     if 'LUpperArm' in segments_xy:
-        dispatcher['segm_function'](image=image,
+        segm_symmetry_dict = dispatcher['segm_function'](image=image,
                                     segm_id='LUpperArm',
                                     segm_xy=segments_xy['LUpperArm']['segm_xy'],
                                     keypoint=segments_xy['LUpperArm']['keypoints']['LElbow'],
                                     ref_point=norm_mid_lupper_arm_xy,
-                                    is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                    is_man=is_man,
+                                    is_rect_symmetrical=is_rect_symmetrical,
+                                    segm_symmetry_dict=segm_symmetry_dict,
                                     scaler=scaler)
 
     if 'LLowerArm' in segments_xy:
-        dispatcher['segm_function'](image=image,
+        segm_symmetry_dict = dispatcher['segm_function'](image=image,
                                     segm_id='LLowerArm',
                                     segm_xy=segments_xy['LLowerArm']['segm_xy'],
                                     keypoint=segments_xy['LLowerArm']['keypoints']['LWrist'],
                                     ref_point=norm_mid_llower_arm_xy,
-                                    is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                    is_man=is_man,
+                                    is_rect_symmetrical=is_rect_symmetrical,
+                                    segm_symmetry_dict=segm_symmetry_dict,
                                     scaler=scaler)
 
     # lower limbs
     if 'RThigh' in segments_xy:
-        dispatcher['segm_function'](image=image,
+        segm_symmetry_dict = dispatcher['segm_function'](image=image,
                                     segm_id='RThigh',
                                     segm_xy=segments_xy['RThigh']['segm_xy'],
                                     keypoint=segments_xy['RThigh']['keypoints']['RKnee'],
                                     ref_point=norm_mid_rthigh_xy,
-                                    is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                    is_man=is_man,
+                                    is_rect_symmetrical=is_rect_symmetrical,
+                                    segm_symmetry_dict=segm_symmetry_dict,
                                     scaler=scaler)
 
     if 'RCalf' in segments_xy:
-        dispatcher['segm_function'](image=image,
+        segm_symmetry_dict = dispatcher['segm_function'](image=image,
                                     segm_id='RCalf',
                                     segm_xy=segments_xy['RCalf']['segm_xy'],
                                     keypoint=segments_xy['RCalf']['keypoints']['RAnkle'],
                                     ref_point=norm_mid_rcalf_xy,
-                                    is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                    is_man=is_man,
+                                    is_rect_symmetrical=is_rect_symmetrical,
+                                    segm_symmetry_dict=segm_symmetry_dict,
                                     scaler=scaler)
 
     if 'LThigh' in segments_xy:
-        dispatcher['segm_function'](image=image,
+        segm_symmetry_dict = dispatcher['segm_function'](image=image,
                                     segm_id='LThigh',
                                     segm_xy=segments_xy['LThigh']['segm_xy'],
                                     keypoint=segments_xy['LThigh']['keypoints']['LKnee'],
                                     ref_point=norm_mid_lthigh_xy,
-                                    is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                    is_man=is_man,
+                                    is_rect_symmetrical=is_rect_symmetrical,
+                                    segm_symmetry_dict=segm_symmetry_dict,
                                     scaler=scaler)
 
     if 'LCalf' in segments_xy:
-        dispatcher['segm_function'](image=image,
+        segm_symmetry_dict = dispatcher['segm_function'](image=image,
                                     segm_id='LCalf',
                                     segm_xy=segments_xy['LCalf']['segm_xy'],
                                     keypoint=segments_xy['LCalf']['keypoints']['LAnkle'],
                                     ref_point=norm_mid_lcalf_xy,
-                                    is_man=is_man, is_rect_symmetrical=is_rect_symmetrical,
+                                    is_man=is_man,
+                                    is_rect_symmetrical=is_rect_symmetrical,
+                                    segm_symmetry_dict=segm_symmetry_dict,
                                     scaler=scaler)
 
     # draw the segments at last, after the symmetry of all segments has been checked
@@ -1652,9 +1678,7 @@ if __name__ == '__main__':
     elif args.gender == 'woman':
         is_man = False
 
-    # store w + h for symmetrical segments
-    segm_symmetry_dict = {}
-
+    # visualize the normalized pose
     if os.path.isfile(args.input):
         if args.output == 'segm':
             generate_segm(infile=args.input, score_cutoff=0.95, show=True)

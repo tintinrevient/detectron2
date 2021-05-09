@@ -638,7 +638,7 @@ if __name__ == '__main__':
     dp_img_category = 'man' # man or woman
     is_vitruve = False
     is_rect = True
-    is_rect_symmetrical = False # buggy when it is True!
+    is_rect_symmetrical = True
 
     # option 1 - images within a range
     dp_img_range = slice(0, 10)
