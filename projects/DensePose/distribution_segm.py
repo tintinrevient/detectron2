@@ -528,9 +528,11 @@ def extract_contour_on_vitruve():
     # keypoint of shoulders = armpits
     rsho_x = int(right_arm_x + height*3/8)
     cv2.circle(image, (rsho_x, arm_line_y), radius=radius_keypoint, color=color_keypoint, thickness=-1)
+    print('rsho_x:', rsho_x)
 
     lsho_x = int(left_arm_x - height * 3 / 8)
     cv2.circle(image, (lsho_x, arm_line_y), radius=radius_keypoint, color=color_keypoint, thickness=-1)
+    print('lsho_x:', lsho_x)
 
     # draw midpoints and contour on a white image
     # white image
@@ -568,6 +570,7 @@ def extract_contour_on_vitruve():
     cv2.circle(image, (mid_lupper_arm_x, arm_line_y), radius=radius_midpoint, color=color_midpoint, thickness=-1)
 
     print('nose_y', nose_y)
+    print('neck_y:', neck_y)
     print('torso_y', mid_torso_y)
     print('rupper_arm_x', mid_rupper_arm_x)
     print('rlower_arm_x', mid_rlower_arm_x)
@@ -650,9 +653,9 @@ if __name__ == '__main__':
 
 
     # visualize the mean and std of all the poses
-    visualize_dist(dp_img_category=dp_img_category, dp_img_ids=dp_img_ids,
-                   is_vitruve=is_vitruve, is_rect=is_rect, is_rect_symmetrical=is_rect_symmetrical,
-                   show=True)
+    # visualize_dist(dp_img_category=dp_img_category, dp_img_ids=dp_img_ids,
+    #                is_vitruve=is_vitruve, is_rect=is_rect, is_rect_symmetrical=is_rect_symmetrical,
+    #                show=True)
 
 
     # superimpose the distribution on the contour of vitruve
@@ -662,4 +665,4 @@ if __name__ == '__main__':
 
     # used only for ONCE to generate the contour and midpoints for the vitruve canon!
     # extract the contour from vitruve
-    # extract_contour_on_vitruve()
+    extract_contour_on_vitruve()

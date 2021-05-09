@@ -105,3 +105,7 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
 * https://en.wikipedia.org/wiki/Artistic_canons_of_body_proportions
 * https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_imgproc/py_morphological_ops/py_morphological_ops.html
 * https://docs.opencv.org/3.4/db/df6/tutorial_erosion_dilatation.html
+* https://matplotlib.org/stable/gallery/statistics/confidence_ellipse.html
+* https://gis.stackexchange.com/questions/238117/standard-deviational-ellipse-with-open-source-python-gdal-ogr-etc
+* https://pro.arcgis.com/en/pro-app/latest/tool-reference/spatial-statistics/h-how-directional-distribution-standard-deviationa.htm
+* https://matplotlib.org/stable/gallery/color/named_colors.html
