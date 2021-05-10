@@ -91,6 +91,13 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
     <img src="pix/densepose-vitruve.png" width="500"/>
 </p>
 
+## Keypoints in elliptical standard distribution
+
+<p float="left">
+    <img src="pix/pose_std0.5_man.png" width="400"/>
+    <img src="pix/pose_std1_man.png" width="400"/>
+</p>
+
 # References:
 * https://www.kaggle.com/changethetuneman/densepose
 * https://github.com/facebookresearch/DensePose/
