@@ -15,11 +15,11 @@ import matplotlib.transforms as transforms
 JOINT_COLOR = {
     'Nose': 'gold',
     'RShoulder': 'yellowgreen',
-    'RElbow': 'greenyellow',
-    'RWrist': 'yellow',
+    'RElbow': 'palegreen',
+    'RWrist': 'khaki',
     'LShoulder': 'yellowgreen',
-    'LElbow': 'greenyellow',
-    'LWrist': 'yellow',
+    'LElbow': 'palegreen',
+    'LWrist': 'khaki',
     'MidHip': 'thistle',
     'RHip': 'plum',
     'LHip': 'violet',
@@ -174,14 +174,18 @@ def _draw_std_ellipse(keypoint_id, ax, n_std):
     return mean_x, mean_y
 
 
-def show_std_image(dict_norm_keypoints_xy, n_std):
+def show_std_image(dict_norm_keypoints_xy, n_std, gender):
 
     # empty figure
     fig, ax_nstd = plt.subplots(figsize=(6, 6))
 
     # range
     plt.xlim(0, 600)
-    plt.ylim(100, 700)
+
+    if n_std == 1:
+        plt.ylim(100, 800)
+    else:
+        plt.ylim(100, 700)
 
     # descend y-axis
     ax_nstd.set_ylim(ax_nstd.get_ylim()[::-1])
@@ -275,7 +279,8 @@ def show_std_image(dict_norm_keypoints_xy, n_std):
     # Line between ankle and knee
     plt.plot([lankle_mean_x, lknee_mean_x], [lankle_mean_y, lknee_mean_y], linewidth=0.5, c='black')
 
-    plt.savefig('pose_std.png')
+    fname = 'pose_std{}_{}.png'.format(n_std, gender)
+    plt.savefig(os.path.join('pix', fname))
 
 
 def _rotate_to_vertical_pose(keypoints):
@@ -558,6 +563,8 @@ def translate_keypoints(keypoints, dict_norm_keypoints_xy, show):
 
 def normalize_keypoints(image_id, dict_norm_keypoints_xy, show):
 
+    global people_count
+
     entry = dp_coco.loadImgs(image_id)[0]
 
     dataset_name = entry['file_name'][entry['file_name'].find('_') + 1:entry['file_name'].rfind('_')]
@@ -597,6 +604,8 @@ def normalize_keypoints(image_id, dict_norm_keypoints_xy, show):
         dict_norm_keypoints_xy = translate_keypoints(keypoints,
                                                      dict_norm_keypoints_xy=dict_norm_keypoints_xy,
                                                      show=show)
+        # valid person -> count_of_people++
+        people_count += 1
 
     return dict_norm_keypoints_xy
 
@@ -605,6 +614,7 @@ if __name__ == '__main__':
 
     # common setting
     dp_img_category = 'man'  # man or woman
+    n_std = 0.5
 
     # option 1 - images within a range
     dp_img_range = slice(0, None)
@@ -614,12 +624,8 @@ if __name__ == '__main__':
     # img_dir = os.path.join('datasets', dp_img_category)
     # dp_img_ids = get_img_ids_by_dir(indir=img_dir)
 
-    # sum of images
-    image_sum = np.empty((image_w_and_h, image_w_and_h, 4), np.float32)
-    image_sum.fill(0)
-
-    # count of images
-    image_count = 0
+    # count of people
+    people_count = 0
 
     # list of keypoints
     dict_norm_keypoints_xy = {
@@ -645,4 +651,8 @@ if __name__ == '__main__':
                                                      show=False)
 
     # show the standard deviation image
-    show_std_image(dict_norm_keypoints_xy, n_std=0.5)
+    show_std_image(dict_norm_keypoints_xy, n_std=n_std, gender=dp_img_category)
+
+    # logs
+    print('Total number of images:', len(dp_img_ids))
+    print('Total number of people:', people_count)
