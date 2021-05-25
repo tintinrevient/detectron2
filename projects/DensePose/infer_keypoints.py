@@ -79,6 +79,7 @@ def generate_outfile(infile):
 
 if __name__ == '__main__':
 
+    # env = py3.8
     # python infer_keypoints.py --input datasets/classical
     # python infer_keypoints.py --input datasets/modern
 
