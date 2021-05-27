@@ -185,7 +185,7 @@ def show_std_image(dict_norm_keypoints_xy, n_std, gender):
     if n_std == 1:
         plt.ylim(100, 800)
     else:
-        plt.ylim(100, 700)
+        plt.ylim(100, 750)
 
     # descend y-axis
     ax_nstd.set_ylim(ax_nstd.get_ylim()[::-1])
@@ -613,7 +613,7 @@ def normalize_keypoints(image_id, dict_norm_keypoints_xy, show):
 if __name__ == '__main__':
 
     # common setting
-    dp_img_category = 'woman'  # man or woman
+    dp_img_category = 'man'  # man or woman
     n_std = 0.5
 
     # standard head height to calcuclate scaler!
