@@ -1,17 +1,23 @@
 import cv2
 import numpy as np
 import os
-from densepose.structures import DensePoseDataRelative
-from infer_segm import _calc_angle, _rotate, _euclidian, COARSE_TO_COLOR
-from distribution_segm import (
-    coco_folder, dp_coco, image_w_and_h,
-    _is_valid, _translate_keypoints_to_bbox, get_img_ids_by_caption, get_img_ids_by_dir
+from pathlib import Path
+from infer_segm import (
+    _calc_angle, _rotate, _euclidian, COARSE_TO_COLOR, JOINT_ID
 )
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 import matplotlib.transforms as transforms
 
 
+# directory of keypoints
+openpose_classical_keypoints_dir = os.path.join('output', 'data', 'classical')
+openpose_modern_keypoints_dir = os.path.join('output', 'data', 'modern')
+
+# image shape
+image_w_and_h = 624
+
+# color of each joint
 JOINT_COLOR = {
     'Nose': 'gold',
     'RShoulder': 'yellowgreen',
@@ -30,14 +36,30 @@ JOINT_COLOR = {
 }
 
 
-def show_keypoints_by_bbox(image_fpath, bbox_xywh, keypoints):
+def _is_valid(keypoints):
+
+    # check the scores for each main keypoint, which MUST exist!
+    # main_keypoints = BODY BOX
+    main_keypoints = ['Nose', 'Neck', 'MidHip']
+
+    # filter the main keypoints by score > 0
+    filtered_keypoints = [key for key in keypoints.keys() if key in main_keypoints]
+    print('Number of valid keypoints (must be equal to 3):', len(filtered_keypoints))
+
+    if len(filtered_keypoints) != 3:
+        return False
+    else:
+        return True
+
+
+def show_keypoints_by_bbox(image_fpath, bbox_xyxy, keypoints):
 
     # load the original image
     im_gray = cv2.imread(image_fpath, cv2.IMREAD_GRAYSCALE)
     im_gray = np.tile(im_gray[:, :, np.newaxis], [1, 1, 3])
 
     # bbox
-    x1, y1, x2, y2 = bbox_xywh[0], bbox_xywh[1], int(bbox_xywh[0] + bbox_xywh[2]), int(bbox_xywh[1] + bbox_xywh[3])
+    x1, y1, x2, y2 = bbox_xyxy[0], bbox_xyxy[1], bbox_xyxy[2], bbox_xyxy[3]
 
     # crop the image within bbox
     im_output = im_gray[y1:y2, x1:x2, :].copy()
@@ -174,7 +196,7 @@ def _draw_std_ellipse(keypoint_id, ax, n_std):
     return mean_x, mean_y
 
 
-def show_std_image(dict_norm_keypoints_xy, n_std, gender):
+def show_std_image(dict_norm_keypoints_xy, n_std, period):
 
     # empty figure
     fig, ax_nstd = plt.subplots(figsize=(6, 6))
@@ -185,7 +207,7 @@ def show_std_image(dict_norm_keypoints_xy, n_std, gender):
     if n_std == 1:
         plt.ylim(100, 800)
     else:
-        plt.ylim(100, 750)
+        plt.ylim(100, 700)
 
     # descend y-axis
     ax_nstd.set_ylim(ax_nstd.get_ylim()[::-1])
@@ -279,8 +301,9 @@ def show_std_image(dict_norm_keypoints_xy, n_std, gender):
     # Line between ankle and knee
     plt.plot([lankle_mean_x, lknee_mean_x], [lankle_mean_y, lknee_mean_y], linewidth=0.5, c='black')
 
-    fname = 'pose_std{}_{}.png'.format(n_std, gender)
+    fname = 'pose_std{}_{}.png'.format(n_std, period)
     plt.savefig(os.path.join('pix', fname))
+    print('Save image in the path:', os.path.join('pix', fname))
 
 
 def _rotate_to_vertical_pose(keypoints):
@@ -417,140 +440,154 @@ def translate_keypoints(keypoints, dict_norm_keypoints_xy, show):
     # Nose
     rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['Nose'])
 
-    reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_nose_to_neck*scaler])
+    reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_nose_to_neck * scaler])
     norm_nose_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
 
     dict_norm_keypoints_xy['Nose'].append(norm_nose_xy)
 
+
     # RShoulder
-    dist_from_rsho_to_neck = _euclidian(keypoints['RShoulder'], keypoints['Neck'])
+    if 'RShoulder' in keypoints:
+        dist_from_rsho_to_neck = _euclidian(keypoints['RShoulder'], keypoints['Neck'])
 
-    rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['RShoulder'])
+        rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['RShoulder'])
 
-    reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_rsho_to_neck*scaler])
-    norm_rsho_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
+        reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_rsho_to_neck * scaler])
+        norm_rsho_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
 
-    dict_norm_keypoints_xy['RShoulder'].append(norm_rsho_xy)
+        dict_norm_keypoints_xy['RShoulder'].append(norm_rsho_xy)
 
     # RElbow
-    dist_from_relb_to_neck = _euclidian(keypoints['RElbow'], keypoints['Neck'])
+    if 'RElbow' in keypoints:
+        dist_from_relb_to_neck = _euclidian(keypoints['RElbow'], keypoints['Neck'])
 
-    rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['RElbow'])
+        rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['RElbow'])
 
-    reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_relb_to_neck * scaler])
-    norm_relb_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
+        reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_relb_to_neck * scaler])
+        norm_relb_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
 
-    dict_norm_keypoints_xy['RElbow'].append(norm_relb_xy)
+        dict_norm_keypoints_xy['RElbow'].append(norm_relb_xy)
 
     # RWrist
-    dist_from_rwrist_to_neck = _euclidian(keypoints['RWrist'], keypoints['Neck'])
+    if 'RWrist' in keypoints:
+        dist_from_rwrist_to_neck = _euclidian(keypoints['RWrist'], keypoints['Neck'])
 
-    rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['RWrist'])
+        rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['RWrist'])
 
-    reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_rwrist_to_neck * scaler])
-    norm_rwrist_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
+        reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_rwrist_to_neck * scaler])
+        norm_rwrist_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
 
-    dict_norm_keypoints_xy['RWrist'].append(norm_rwrist_xy)
+        dict_norm_keypoints_xy['RWrist'].append(norm_rwrist_xy)
 
     # LShoulder
-    dist_from_lsho_to_neck = _euclidian(keypoints['LShoulder'], keypoints['Neck'])
+    if 'LShoulder' in keypoints:
+        dist_from_lsho_to_neck = _euclidian(keypoints['LShoulder'], keypoints['Neck'])
 
-    rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['LShoulder'])
+        rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['LShoulder'])
 
-    reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_lsho_to_neck * scaler])
-    norm_lsho_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
+        reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_lsho_to_neck * scaler])
+        norm_lsho_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
 
-    dict_norm_keypoints_xy['LShoulder'].append(norm_lsho_xy)
+        dict_norm_keypoints_xy['LShoulder'].append(norm_lsho_xy)
 
     # LElbow
-    dist_from_lelb_to_neck = _euclidian(keypoints['LElbow'], keypoints['Neck'])
+    if 'LElbow' in keypoints:
+        dist_from_lelb_to_neck = _euclidian(keypoints['LElbow'], keypoints['Neck'])
 
-    rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['LElbow'])
+        rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['LElbow'])
 
-    reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_lelb_to_neck * scaler])
-    norm_lelb_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
+        reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_lelb_to_neck * scaler])
+        norm_lelb_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
 
-    dict_norm_keypoints_xy['LElbow'].append(norm_lelb_xy)
+        dict_norm_keypoints_xy['LElbow'].append(norm_lelb_xy)
 
     # LWrist
-    dist_from_lwrist_to_neck = _euclidian(keypoints['LWrist'], keypoints['Neck'])
+    if 'LWrist' in keypoints:
+        dist_from_lwrist_to_neck = _euclidian(keypoints['LWrist'], keypoints['Neck'])
 
-    rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['LWrist'])
+        rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['LWrist'])
 
-    reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_lwrist_to_neck * scaler])
-    norm_lwrist_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
+        reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_lwrist_to_neck * scaler])
+        norm_lwrist_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
 
-    dict_norm_keypoints_xy['LWrist'].append(norm_lwrist_xy)
+        dict_norm_keypoints_xy['LWrist'].append(norm_lwrist_xy)
 
     # MidHip
-    dist_from_midhip_to_neck = _euclidian(keypoints['MidHip'], keypoints['Neck'])
+    if 'MidHip' in keypoints:
+        dist_from_midhip_to_neck = _euclidian(keypoints['MidHip'], keypoints['Neck'])
 
-    rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['MidHip'])
+        rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['MidHip'])
 
-    reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_midhip_to_neck * scaler])
-    norm_midhip_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
+        reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_midhip_to_neck * scaler])
+        norm_midhip_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
 
-    dict_norm_keypoints_xy['MidHip'].append(norm_midhip_xy)
+        dict_norm_keypoints_xy['MidHip'].append(norm_midhip_xy)
 
     # RHip
-    dist_from_rhip_to_neck = _euclidian(keypoints['RHip'], keypoints['Neck'])
+    if 'RHip' in keypoints:
+        dist_from_rhip_to_neck = _euclidian(keypoints['RHip'], keypoints['Neck'])
 
-    rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['RHip'])
+        rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['RHip'])
 
-    reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_rhip_to_neck * scaler])
-    norm_rhip_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
+        reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_rhip_to_neck * scaler])
+        norm_rhip_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
 
-    dict_norm_keypoints_xy['RHip'].append(norm_rhip_xy)
+        dict_norm_keypoints_xy['RHip'].append(norm_rhip_xy)
 
     # LHip
-    dist_from_lhip_to_neck = _euclidian(keypoints['LHip'], keypoints['Neck'])
+    if 'LHip' in keypoints:
+        dist_from_lhip_to_neck = _euclidian(keypoints['LHip'], keypoints['Neck'])
 
-    rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['LHip'])
+        rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['LHip'])
 
-    reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_lhip_to_neck * scaler])
-    norm_lhip_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
+        reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_lhip_to_neck * scaler])
+        norm_lhip_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
 
-    dict_norm_keypoints_xy['LHip'].append(norm_lhip_xy)
+        dict_norm_keypoints_xy['LHip'].append(norm_lhip_xy)
 
     # RKnee
-    dist_from_rknee_to_neck = _euclidian(keypoints['RKnee'], keypoints['Neck'])
+    if 'RKnee' in keypoints:
+        dist_from_rknee_to_neck = _euclidian(keypoints['RKnee'], keypoints['Neck'])
 
-    rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['RKnee'])
+        rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['RKnee'])
 
-    reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_rknee_to_neck * scaler])
-    norm_rknee_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
+        reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_rknee_to_neck * scaler])
+        norm_rknee_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
 
-    dict_norm_keypoints_xy['RKnee'].append(norm_rknee_xy)
+        dict_norm_keypoints_xy['RKnee'].append(norm_rknee_xy)
 
     # RAnkle
-    dist_from_rankle_to_neck = _euclidian(keypoints['RAnkle'], keypoints['Neck'])
+    if 'RAnkle' in keypoints:
+        dist_from_rankle_to_neck = _euclidian(keypoints['RAnkle'], keypoints['Neck'])
 
-    rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['RAnkle'])
+        rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['RAnkle'])
 
-    reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_rankle_to_neck * scaler])
-    norm_rankle_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
+        reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_rankle_to_neck * scaler])
+        norm_rankle_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
 
-    dict_norm_keypoints_xy['RAnkle'].append(norm_rankle_xy)
+        dict_norm_keypoints_xy['RAnkle'].append(norm_rankle_xy)
 
     # LKnee
-    dist_from_lknee_to_neck = _euclidian(keypoints['LKnee'], keypoints['Neck'])
+    if 'LKnee' in keypoints:
+        dist_from_lknee_to_neck = _euclidian(keypoints['LKnee'], keypoints['Neck'])
 
-    rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['LKnee'])
+        rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['LKnee'])
 
-    reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_lknee_to_neck * scaler])
-    norm_lknee_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
+        reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_lknee_to_neck * scaler])
+        norm_lknee_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
 
-    dict_norm_keypoints_xy['LKnee'].append(norm_lknee_xy)
+        dict_norm_keypoints_xy['LKnee'].append(norm_lknee_xy)
 
     # LAnkle
-    dist_from_lankle_to_neck = _euclidian(keypoints['LAnkle'], keypoints['Neck'])
+    if 'LAnkle' in keypoints:
+        dist_from_lankle_to_neck = _euclidian(keypoints['LAnkle'], keypoints['Neck'])
 
-    rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['LAnkle'])
+        rad, deg = _calc_angle(point1=reference_point, center=keypoints['Neck'], point2=keypoints['LAnkle'])
 
-    reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_lankle_to_neck * scaler])
-    norm_lankle_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
+        reference_norm_point = np.array(norm_neck_xy) + np.array([0, -dist_from_lankle_to_neck * scaler])
+        norm_lankle_xy = _rotate(point=reference_norm_point, center=norm_neck_xy, rad=rad)
 
-    dict_norm_keypoints_xy['LAnkle'].append(norm_lankle_xy)
+        dict_norm_keypoints_xy['LAnkle'].append(norm_lankle_xy)
 
 
     if show:
@@ -561,46 +598,44 @@ def translate_keypoints(keypoints, dict_norm_keypoints_xy, show):
     return dict_norm_keypoints_xy
 
 
-def normalize_keypoints(image_id, dict_norm_keypoints_xy, show):
+def normalize_keypoints(image_keypoints, image_fpath, dict_norm_keypoints_xy, show):
 
     global people_count
 
-    entry = dp_coco.loadImgs(image_id)[0]
-
-    dataset_name = entry['file_name'][entry['file_name'].find('_') + 1:entry['file_name'].rfind('_')]
-    image_fpath = os.path.join(coco_folder, dataset_name, entry['file_name'])
-
-    print('image_fpath:', image_fpath)
-
-    dp_annotation_ids = dp_coco.getAnnIds(imgIds=entry['id'])
-    dp_annotations = dp_coco.loadAnns(dp_annotation_ids)
-
     # iterate through all the people in one image
-    for dp_annotation in dp_annotations:
-
-        # check the validity of annotation
-        is_valid, _ = DensePoseDataRelative.validate_annotation(dp_annotation)
-
-        if not is_valid:
-            continue
+    for keypoints in image_keypoints:
 
         # bbox
-        bbox_xywh = np.array(dp_annotation["bbox"]).astype(int)
+        min_x, min_y, _ = np.min(keypoints, axis=0).astype(int)
+        max_x, max_y, _ = np.max(keypoints, axis=0).astype(int)
 
-        # keypoints
-        keypoints = np.array(dp_annotation['keypoints']).astype(int)
-        keypoints = _translate_keypoints_to_bbox(keypoints=keypoints, bbox_xywh=bbox_xywh)
+        # translate keypoints to bbox
+        keypoints = (np.array(keypoints) - np.array((min_x, min_y, 0.0))).astype(int)
+        # dict keypoints
+        keypoints = dict(zip(JOINT_ID, keypoints))
 
-        # check the validity of keypoints
+        # validity check
+        # step 1: check the existence of keypoints
+        null_key_list = []
+        for key, value in keypoints.items():
+            x, y, score = value
+            if x == 0 and y == 0:
+                null_key_list.append(key)
+        [keypoints.pop(x, None) for x in null_key_list]
+
+        # step 2: check the validity of keypoints
         if not _is_valid(keypoints=keypoints):
             continue
 
         if show:
-            show_keypoints_by_bbox(image_fpath, bbox_xywh, keypoints)
+            bbox_xyxy = tuple([min_x, min_y, max_x, max_y])
+            show_keypoints_by_bbox(image_fpath, bbox_xyxy, keypoints)
 
         # get the normalized image
+        # step 1: rotate to vertical pose
         keypoints = rotate_keypoints(keypoints)
 
+        # step 2: scale to standard head height
         dict_norm_keypoints_xy = translate_keypoints(keypoints,
                                                      dict_norm_keypoints_xy=dict_norm_keypoints_xy,
                                                      show=show)
@@ -613,24 +648,27 @@ def normalize_keypoints(image_id, dict_norm_keypoints_xy, show):
 if __name__ == '__main__':
 
     # common setting
-    dp_img_category = 'man'  # man or woman
+    period = 'modern' # classical or modern
     n_std = 0.5
 
     # standard head height to calcuclate scaler!
-    if dp_img_category == 'man':
-        std_head_height = 62
-    elif dp_img_category == 'woman':
-        std_head_height = 58
-    else:
-        std_head_height = 50
+    std_head_height = 60 # mean = (62 + 58) / 2
 
-    # option 1 - images within a range
-    dp_img_range = slice(0, None)
-    dp_img_ids = get_img_ids_by_caption(dp_img_category=dp_img_category, dp_img_range=dp_img_range)
+    if period == 'classical':
+        openpose_keypoints_dir = openpose_classical_keypoints_dir
+    elif period == 'modern':
+        openpose_keypoints_dir = openpose_modern_keypoints_dir
 
-    # option 2 - image from a directory
-    # img_dir = os.path.join('datasets', dp_img_category)
-    # dp_img_ids = get_img_ids_by_dir(indir=img_dir)
+    # load the inferred keypoints of OpenPose from a directory
+    keypoints_images_list = []
+    image_fpath_list = []
+    for path in Path(openpose_keypoints_dir).rglob('*.npy'):
+        # keypoints
+        image_keypoints = np.load(path, allow_pickle='TRUE').item()['keypoints']
+        keypoints_images_list.append(image_keypoints)
+        # image path
+        image_fpath = str(path).replace('/data', '').replace('.npy', '.jpg')
+        image_fpath_list.append(image_fpath)
 
     # count of people
     people_count = 0
@@ -653,14 +691,14 @@ if __name__ == '__main__':
         'LAnkle': []
     }
 
-    for image_id in dp_img_ids:
-        dict_norm_keypoints_xy = normalize_keypoints(image_id=image_id,
+    for image_keypoints, image_fpath in zip(keypoints_images_list, image_fpath_list):
+        dict_norm_keypoints_xy = normalize_keypoints(image_keypoints=image_keypoints,
+                                                     image_fpath=image_fpath,
                                                      dict_norm_keypoints_xy=dict_norm_keypoints_xy,
                                                      show=False)
 
     # show the standard deviation image
-    show_std_image(dict_norm_keypoints_xy, n_std=n_std, gender=dp_img_category)
+    show_std_image(dict_norm_keypoints_xy, n_std=n_std, period=period)
 
     # logs
-    print('Total number of images:', len(dp_img_ids))
     print('Total number of people:', people_count)
