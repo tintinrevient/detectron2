@@ -405,7 +405,7 @@ def translate_keypoints(keypoints, dict_norm_keypoints_xy, show):
 
     # Scaler
     dist_from_nose_to_neck = _euclidian(keypoints['Nose'], keypoints['Neck'])
-    scaler = 50 / dist_from_nose_to_neck
+    scaler = std_head_height / dist_from_nose_to_neck
 
     # Universal reference point
     reference_point = np.array(keypoints['Neck']) + np.array([0, -50, 0])
@@ -613,8 +613,16 @@ def normalize_keypoints(image_id, dict_norm_keypoints_xy, show):
 if __name__ == '__main__':
 
     # common setting
-    dp_img_category = 'man'  # man or woman
+    dp_img_category = 'woman'  # man or woman
     n_std = 0.5
+
+    # standard head height to calcuclate scaler!
+    if dp_img_category == 'man':
+        std_head_height = 62
+    elif dp_img_category == 'woman':
+        std_head_height = 58
+    else:
+        std_head_height = 50
 
     # option 1 - images within a range
     dp_img_range = slice(0, None)
