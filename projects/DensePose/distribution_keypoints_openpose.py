@@ -13,6 +13,8 @@ import matplotlib.transforms as transforms
 # directory of keypoints
 openpose_classical_keypoints_dir = os.path.join('output', 'data', 'classical')
 openpose_modern_keypoints_dir = os.path.join('output', 'data', 'modern')
+openpose_full_keypoints_dir = os.path.join('output', 'data', 'full')
+openpose_nude_keypoints_dir = os.path.join('output', 'data', 'nude')
 
 # image shape
 image_w_and_h = 624
@@ -648,7 +650,7 @@ def normalize_keypoints(image_keypoints, image_fpath, dict_norm_keypoints_xy, sh
 if __name__ == '__main__':
 
     # common setting
-    period = 'modern' # classical or modern
+    period = 'nude' # classical or modern
     n_std = 0.5
 
     # standard head height to calcuclate scaler!
@@ -658,6 +660,10 @@ if __name__ == '__main__':
         openpose_keypoints_dir = openpose_classical_keypoints_dir
     elif period == 'modern':
         openpose_keypoints_dir = openpose_modern_keypoints_dir
+    elif period == 'full':
+        openpose_keypoints_dir = openpose_full_keypoints_dir
+    elif period == 'nude':
+        openpose_keypoints_dir = openpose_nude_keypoints_dir
 
     # load the inferred keypoints of OpenPose from a directory
     keypoints_images_list = []

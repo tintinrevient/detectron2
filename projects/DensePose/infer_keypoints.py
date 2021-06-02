@@ -66,7 +66,7 @@ def generate_keypoints(infile, score_cutoff, show):
 
 def generate_outfile(infile):
 
-    outdir = os.path.join('output', infile[infile.find('/') + 1:infile.rfind('/')])
+    outdir = os.path.join('output', 'keypoints', infile[infile.find('/') + 1:infile.rfind('/')])
 
     if not os.path.exists(outdir):
         os.makedirs(outdir)
