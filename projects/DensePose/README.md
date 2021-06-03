@@ -98,6 +98,20 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
     <img src="pix/pose_std1_man.png" width="400"/>
 </p>
 
+## Triplet of keypoints to calculate the inner angles
+
+1. Execute the following command to generate the angle CSV 'joint_angles_man.csv' or 'joint_angles_woman.csv' in the 'output' folder:
+```bash
+python util_angle_of_keypoints.py 
+```
+
+2. Copy the angle CSV 'joint_angles_man.csv' or 'joint_angles_woman.csv' to the 'output' folder in [pose-analysis](https://github.com/tintinrevient/pose-analysis);
+
+3. Generate the dendrogram in [pose-analysis](https://github.com/tintinrevient/pose-analysis):
+```bash
+python hierarchical_clustering.py
+```
+
 # References:
 * https://www.kaggle.com/changethetuneman/densepose
 * https://github.com/facebookresearch/DensePose/
