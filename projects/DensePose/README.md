@@ -93,6 +93,16 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
 
 ## Keypoints in elliptical standard distribution
 
+1. For the natural poses of the COCO dataset (DensePose), execute the command below:
+```bash
+ python distribution_keypoints_densepose.py
+```
+
+2. For the artistic poses (OpenPose), execute the command below:
+```bash
+ python distribution_keypoints_openpose.py
+```
+
 <p float="left">
     <img src="pix/pose_std0.5_man.png" width="400"/>
     <img src="pix/pose_std1_man.png" width="400"/>
