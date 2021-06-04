@@ -650,7 +650,7 @@ def normalize_keypoints(image_keypoints, image_fpath, dict_norm_keypoints_xy, sh
 if __name__ == '__main__':
 
     # common setting
-    period = 'nude' # classical or modern
+    period = 'classical' # classical or modern or full or nude
     n_std = 0.5
 
     # standard head height to calcuclate scaler!

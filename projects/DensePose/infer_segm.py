@@ -25,6 +25,8 @@ import matplotlib.pyplot as plt
 from scipy import ndimage
 from scipy.ndimage.interpolation import rotate
 from scipy.spatial import ConvexHull
+import pandas as pd
+
 
 # window setting
 window_segm = 'segm'
@@ -37,13 +39,8 @@ window_stitched_data = 'stitched data'
 gray_val_scale = 10.625
 cmap = cv2.COLORMAP_PARULA
 
-norm_img_shape = (2000, 2000, 4)
-
-keypoints_radius = 5
-keypoints_color = (0, 0, 0)
-
 # files of config
-densepose_keypoints_dir = os.path.join('output', 'keypoints')
+densepose_keypoints_dir = os.path.join('output', 'segments')
 openpose_keypoints_dir = os.path.join('output', 'data')
 norm_segm_dir = os.path.join('output', 'pix')
 
@@ -793,6 +790,11 @@ def _draw_symmetrical_rect_segm(image, segm_id, w_and_h, ref_point):
 
     w, h = w_and_h
 
+    # update output_dict
+    global output_dict
+    output_dict[segm_id + '_w'] = w
+    output_dict[segm_id + '_h'] = h
+
     img_bg = np.empty((h, w, 4), np.uint8)
     img_bg.fill(255)
     img_bg[:, :] = COARSE_TO_COLOR[segm_id]
@@ -876,6 +878,8 @@ def _translate_and_scale_segm_to_rect(image, segm_id, segm_xy, keypoint, ref_poi
 
 def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man, is_rect_symmetrical):
 
+    global output_dict
+
     segm_symmetry_dict = {}
 
     if is_vitruve:
@@ -951,6 +955,9 @@ def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man, is_rect_symmetric
                                              is_rect_symmetrical=is_rect_symmetrical,
                                              segm_symmetry_dict=segm_symmetry_dict,
                                              scaler=None)
+    # update output_dict
+    output_dict['scaler'] = scaler
+    print('scaler:', scaler)
 
     # torso
     if 'Torso' in segments_xy:
@@ -1673,6 +1680,8 @@ if __name__ == '__main__':
     parser.add_argument('--output', help='segm is segment only, norm is normalized segment')
     args = parser.parse_args()
 
+    output_dict = {}
+
     if args.gender == 'man':
         is_man = True
     elif args.gender == 'woman':
@@ -1686,6 +1695,10 @@ if __name__ == '__main__':
             generate_norm_segm(infile=args.input, score_cutoff=0.95,
                                is_vitruve=False, is_rect=True, is_man=is_man, is_rect_symmetrical=True,
                                show=True)
+
+            # save the norm data for later rotation back to the original coordinates
+            df = pd.DataFrame(data=output_dict, index=['norm'])
+            df.to_csv(os.path.join('output', 'norm_segm.csv'), index=True)
 
     elif os.path.isdir(args.input):
         for path in Path(args.input).rglob('*.jpg'):

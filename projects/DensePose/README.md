@@ -112,6 +112,22 @@ python util_angle_of_keypoints.py
 python hierarchical_clustering.py
 ```
 
+## Put normalized dilated symmetrical segments back to the original pose
+
+1. Execute the command below to generate the file 'norm_segm.csv' in the 'output' folder:
+```bash
+python infer_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg --gender woman --output norm
+```
+
+2. Execute the command below to visualize the normalized segments on the original image:
+```bash
+python visualize_norm_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg
+```
+
+<p float="left">
+    <img src="pix/norm_segm_90551.png" width="400"/>
+</p>
+
 # References:
 * https://www.kaggle.com/changethetuneman/densepose
 * https://github.com/facebookresearch/DensePose/
