@@ -108,6 +108,11 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
     <img src="pix/pose_std1_man.png" width="400"/>
 </p>
 
+3. Execute the command below to do a Chi-squared test, to verify whether COCO man and woman, natural and artistic poses, etc., are significantly different:
+```bash
+python chisquare.py
+```
+
 ## Triplet of keypoints to calculate the inner angles
 
 1. Execute the following command to generate the angle CSV 'joint_angles_man.csv' or 'joint_angles_woman.csv' in the 'output' folder:
