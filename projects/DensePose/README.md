@@ -108,9 +108,9 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
     <img src="pix/pose_std1_man.png" width="400"/>
 </p>
 
-3. Execute the command below to do a Chi-squared test, to verify whether COCO man and woman, natural and artistic poses, etc., are significantly different:
+3. Execute the command below to do a Chi-squared or ANOVA test, to verify whether COCO man and woman, natural and artistic poses, etc., are significantly different:
 ```bash
-python chisquare.py
+python chisquare_anova.py
 ```
 
 ## Triplet of keypoints to calculate the inner angles
