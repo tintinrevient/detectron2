@@ -215,19 +215,20 @@ def show_std_image(dict_norm_keypoints_xy, n_std, period):
     ax_nstd.set_ylim(ax_nstd.get_ylim()[::-1])
 
     # Neck
-    ax_nstd.scatter([312], [198], s=1, c='black')
+    neck_mean_x, neck_mean_y = (312, 198)
+    ax_nstd.scatter([neck_mean_x], [neck_mean_y], s=1, c='black')
 
     # Nose
     nose_mean_x, nose_mean_y = _draw_std_ellipse('Nose', ax_nstd, n_std)
 
     # Line between neck and nose
-    plt.plot([312, nose_mean_x], [198, nose_mean_y], linewidth=0.5, c='black')
+    plt.plot([neck_mean_x, nose_mean_x], [neck_mean_y, nose_mean_y], linewidth=0.5, c='black')
 
     # RShoulder
     rsho_mean_x, rsho_mean_y = _draw_std_ellipse('RShoulder', ax_nstd, n_std)
 
     # Line between neck and shoulder
-    plt.plot([312, rsho_mean_x], [198, rsho_mean_y], linewidth=0.5, c='black')
+    plt.plot([neck_mean_x, rsho_mean_x], [neck_mean_y, rsho_mean_y], linewidth=0.5, c='black')
 
     # RElbow
     relb_mean_x, relb_mean_y = _draw_std_ellipse('RElbow', ax_nstd, n_std)
@@ -245,7 +246,7 @@ def show_std_image(dict_norm_keypoints_xy, n_std, period):
     lsho_mean_x, lsho_mean_y = _draw_std_ellipse('LShoulder', ax_nstd, n_std)
 
     # Line between neck and shoulder
-    plt.plot([312, lsho_mean_x], [198, lsho_mean_y], linewidth=0.5, c='black')
+    plt.plot([neck_mean_x, lsho_mean_x], [neck_mean_y, lsho_mean_y], linewidth=0.5, c='black')
 
     # LElbow
     lelb_mean_x, lelb_mean_y = _draw_std_ellipse('LElbow', ax_nstd, n_std)
@@ -265,7 +266,7 @@ def show_std_image(dict_norm_keypoints_xy, n_std, period):
     ax_nstd.scatter([midhip_mean_x], [midhip_mean_y], s=1, c='black')
 
     # Line between neck and midhip
-    plt.plot([312, midhip_mean_x], [198, midhip_mean_y], linewidth=0.5, c='black')
+    plt.plot([neck_mean_x, midhip_mean_x], [neck_mean_y, midhip_mean_y], linewidth=0.5, c='black')
 
     # RHip
     rhip_mean_x, rhip_mean_y = _draw_std_ellipse('RHip', ax_nstd, n_std)
@@ -303,9 +304,31 @@ def show_std_image(dict_norm_keypoints_xy, n_std, period):
     # Line between ankle and knee
     plt.plot([lankle_mean_x, lknee_mean_x], [lankle_mean_y, lknee_mean_y], linewidth=0.5, c='black')
 
+    # save the image
     fname = 'pose_std{}_{}.png'.format(n_std, period)
     plt.savefig(os.path.join('pix', fname))
     print('Save image in the path:', os.path.join('pix', fname))
+
+    # print the distances
+    print('Nose to Neck:', _euclidian((nose_mean_x, nose_mean_y), (neck_mean_x, neck_mean_y)))
+
+    print('Neck to RShoulder:', _euclidian((neck_mean_x, neck_mean_y), (rsho_mean_x, rsho_mean_y)))
+    print('RShoulder to RElbow:', _euclidian((rsho_mean_x, rsho_mean_y), (relb_mean_x, relb_mean_y)))
+    print('RElbow to RWrist:', _euclidian((relb_mean_x, relb_mean_y), (rwrist_mean_x, rwrist_mean_y)))
+
+    print('Neck to LShoulder:', _euclidian((neck_mean_x, neck_mean_y), (lsho_mean_x, lsho_mean_y)))
+    print('LShoulder to LElbow:', _euclidian((lsho_mean_x, lsho_mean_y), (lelb_mean_x, lelb_mean_y)))
+    print('LElbow to LWrist:', _euclidian((lelb_mean_x, lelb_mean_y), (lwrist_mean_x, lwrist_mean_y)))
+
+    print('Neck to MidHip:', _euclidian((neck_mean_x, neck_mean_y), (midhip_mean_x, midhip_mean_y)))
+
+    print('MidHip to RHip:', _euclidian((midhip_mean_x, midhip_mean_y), (rhip_mean_x, rhip_mean_y)))
+    print('RHip to RKnee:', _euclidian((rhip_mean_x, rhip_mean_y), (rknee_mean_x, rknee_mean_y)))
+    print('RKnee to RAnkle:', _euclidian((rknee_mean_x, rknee_mean_y), (rankle_mean_x, rankle_mean_y)))
+
+    print('MidHip to LHip:', _euclidian((midhip_mean_x, midhip_mean_y), (lhip_mean_x, lhip_mean_y)))
+    print('LHip to LKnee:', _euclidian((lhip_mean_x, lhip_mean_y), (lknee_mean_x, lknee_mean_y)))
+    print('LKnee to LAnkle:', _euclidian((lknee_mean_x, lknee_mean_y), (lankle_mean_x, lankle_mean_y)))
 
 
 def _rotate_to_vertical_pose(keypoints):
@@ -650,7 +673,7 @@ def normalize_keypoints(image_keypoints, image_fpath, dict_norm_keypoints_xy, sh
 if __name__ == '__main__':
 
     # common setting
-    period = 'classical' # classical or modern or full or nude
+    period = 'nude' # classical or modern or full or nude
     n_std = 0.5
 
     # standard head height to calcuclate scaler!
