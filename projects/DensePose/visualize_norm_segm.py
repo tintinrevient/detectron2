@@ -142,14 +142,14 @@ def _get_rotated_angles(keypoints, midpoints):
     return rotated_angles
 
 
-def _draw_norm_segm(image, midpoints, rotated_angles, df_norm_segm):
+def _draw_norm_segm(image, midpoints, rotated_angles, dict_norm_segm):
 
     # scaler
-    scaler = 1 / df_norm_segm['scaler']
+    scaler = 1 / dict_norm_segm['scaler']
 
     # head
     rect = ((midpoints['Head'][0], midpoints['Head'][1]),
-            (df_norm_segm['Head_w'] * scaler, df_norm_segm['Head_h'] * scaler),
+            (dict_norm_segm['Head_w'] * scaler, dict_norm_segm['Head_h'] * scaler),
             rotated_angles['Head'])
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
@@ -157,7 +157,7 @@ def _draw_norm_segm(image, midpoints, rotated_angles, df_norm_segm):
 
     # torso
     rect = ((midpoints['Torso'][0], midpoints['Torso'][1]),
-            (df_norm_segm['Torso_w'] * scaler, df_norm_segm['Torso_h'] * scaler),
+            (dict_norm_segm['Torso_w'] * scaler, dict_norm_segm['Torso_h'] * scaler),
             rotated_angles['Torso'])
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
@@ -165,28 +165,28 @@ def _draw_norm_segm(image, midpoints, rotated_angles, df_norm_segm):
 
     # upper limbs
     rect = ((midpoints['RUpperArm'][0], midpoints['RUpperArm'][1]),
-            (df_norm_segm['RUpperArm_w'] * scaler, df_norm_segm['RUpperArm_h'] * scaler),
+            (dict_norm_segm['RUpperArm_w'] * scaler, dict_norm_segm['RUpperArm_h'] * scaler),
             rotated_angles['RUpperArm'])
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
     cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
 
     rect = ((midpoints['RLowerArm'][0], midpoints['RLowerArm'][1]),
-            (df_norm_segm['RLowerArm_w'] * scaler, df_norm_segm['RLowerArm_h'] * scaler),
+            (dict_norm_segm['RLowerArm_w'] * scaler, dict_norm_segm['RLowerArm_h'] * scaler),
             rotated_angles['RLowerArm'])
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
     cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
 
     rect = ((midpoints['LUpperArm'][0], midpoints['LUpperArm'][1]),
-            (df_norm_segm['LUpperArm_w'] * scaler, df_norm_segm['LUpperArm_h'] * scaler),
+            (dict_norm_segm['LUpperArm_w'] * scaler, dict_norm_segm['LUpperArm_h'] * scaler),
             rotated_angles['LUpperArm'])
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
     cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
 
     rect = ((midpoints['LLowerArm'][0], midpoints['LLowerArm'][1]),
-            (df_norm_segm['LLowerArm_w'] * scaler, df_norm_segm['LLowerArm_h'] * scaler),
+            (dict_norm_segm['LLowerArm_w'] * scaler, dict_norm_segm['LLowerArm_h'] * scaler),
             rotated_angles['LLowerArm'])
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
@@ -194,28 +194,28 @@ def _draw_norm_segm(image, midpoints, rotated_angles, df_norm_segm):
 
     # lower limbs
     rect = ((midpoints['RThigh'][0], midpoints['RThigh'][1]),
-            (df_norm_segm['RThigh_w'] * scaler, df_norm_segm['RThigh_h'] * scaler),
+            (dict_norm_segm['RThigh_w'] * scaler, dict_norm_segm['RThigh_h'] * scaler),
             rotated_angles['RThigh'])
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
     cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
 
     rect = ((midpoints['RCalf'][0], midpoints['RCalf'][1]),
-            (df_norm_segm['RCalf_w'] * scaler, df_norm_segm['RCalf_h'] * scaler),
+            (dict_norm_segm['RCalf_w'] * scaler, dict_norm_segm['RCalf_h'] * scaler),
             rotated_angles['RCalf'])
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
     cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
 
     rect = ((midpoints['LThigh'][0], midpoints['LThigh'][1]),
-            (df_norm_segm['LThigh_w'] * scaler, df_norm_segm['LThigh_h'] * scaler),
+            (dict_norm_segm['LThigh_w'] * scaler, dict_norm_segm['LThigh_h'] * scaler),
             rotated_angles['LThigh'])
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
     cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
 
     rect = ((midpoints['LCalf'][0], midpoints['LCalf'][1]),
-            (df_norm_segm['LCalf_w'] * scaler, df_norm_segm['LCalf_h'] * scaler),
+            (dict_norm_segm['LCalf_w'] * scaler, dict_norm_segm['LCalf_h'] * scaler),
             rotated_angles['LCalf'])
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
@@ -244,14 +244,9 @@ def visualize(infile, openpose_idx, densepose_idx):
 
     # step 3.1: load the data of norm_segm
     df_norm_segm = pd.read_csv(fname_norm_segm, index_col=0)
-
-    iter_list = [iter.start() for iter in re.finditer(r"/", infile)]
-    artist = args.input[iter_list[1] + 1:iter_list[2]]
-    painting_number = args.input[iter_list[2] + 1:args.input.rfind('.')]
-    index_name = '{}_{}_{}'.format(artist, painting_number, openpose_idx)
-
-    df_norm_segm = df_norm_segm.loc[index_name]
-    print(df_norm_segm)
+    index_name = generate_index_name(infile, openpose_idx)
+    dict_norm_segm = df_norm_segm.loc[index_name]
+    print(dict_norm_segm)
 
     # step 3.2: draw the norm_segm on the original image
     # load the original image
@@ -259,7 +254,7 @@ def visualize(infile, openpose_idx, densepose_idx):
     im_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     im_gray = np.tile(im_gray[:, :, np.newaxis], [1, 1, 3])
     # draw norm_segm
-    _draw_norm_segm(im_gray, midpoints, rotated_angles, df_norm_segm)
+    _draw_norm_segm(im_gray, midpoints, rotated_angles, dict_norm_segm)
 
     # test
     # cv2.circle(im_gray, (int(midpoints['Torso'][0]), int(midpoints['Torso'][1])), radius=10, color=(0, 255, 0), thickness=-1)
@@ -272,6 +267,17 @@ def visualize(infile, openpose_idx, densepose_idx):
     cv2.setWindowProperty(image_window, cv2.WND_PROP_TOPMOST, 1)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
+
+def generate_index_name(infile, openpose_idx):
+
+    iter_list = [iter.start() for iter in re.finditer(r"/", infile)]
+    artist = infile[iter_list[1] + 1:iter_list[2]]
+    painting_number = infile[iter_list[2] + 1:infile.rfind('.')]
+
+    index_name = '{}_{}_{}'.format(artist, painting_number, openpose_idx)
+
+    return index_name
 
 
 if __name__ == '__main__':

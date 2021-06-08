@@ -789,14 +789,15 @@ def _symmetrize_rect_segm(segm_id, w, h, midpoint_x, midpoint_y, segm_symmetry_d
                 segm_symmetry_dict['RCalf'] = (w, h)
 
 
-def _draw_symmetrical_rect_segm(image, segm_id, w_and_h, ref_point):
+def _draw_symmetrical_rect_segm(image, segm_id, w_and_h, ref_point, update_dict=True):
 
     w, h = w_and_h
 
     # update output_dict
-    global output_dict
-    output_dict[segm_id + '_w'] = w
-    output_dict[segm_id + '_h'] = h
+    if update_dict:
+        global output_dict
+        output_dict[segm_id + '_w'] = w
+        output_dict[segm_id + '_h'] = h
 
     img_bg = np.empty((h, w, 4), np.uint8)
     img_bg.fill(255)
@@ -910,7 +911,7 @@ def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man, is_rect_symmetric
         # scaler = 63 / actual head height
 
     # common settings
-    # coordinates [x, y] coming from dist_segm.draw_contour_on_vitruve()
+    # coordinates [x, y] coming from distribution_segm.extract_contour_on_vitruve()
     # nose_y 146
     # torso_y 281
     # rupper_arm_x 218
