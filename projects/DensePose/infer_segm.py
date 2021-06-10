@@ -26,6 +26,7 @@ from scipy import ndimage
 from scipy.ndimage.interpolation import rotate
 from scipy.spatial import ConvexHull
 import pandas as pd
+from skimage import morphology
 
 
 # window setting
@@ -631,7 +632,7 @@ def _euclidian(point1, point2):
 def _remove_outlier(segm_xy):
 
     # outlier factor
-    factor = 3
+    factor = 2
 
     # mean of [x, y]
     xy_mean = np.mean(segm_xy, axis=0)
@@ -744,20 +745,26 @@ def _symmetrize_rect_segm(segm_id, w, h, midpoint_x, midpoint_y, segm_symmetry_d
 
         elif segm_id == 'LUpperArm':
 
-            ref_w, ref_h = segm_symmetry_dict['RUpperArm']
-
-            if w < ref_w:
-                segm_symmetry_dict['LUpperArm'] = segm_symmetry_dict['RUpperArm']
+            if 'RUpperArm' in segm_symmetry_dict:
+                ref_w, ref_h = segm_symmetry_dict['RUpperArm']
+                if w < ref_w:
+                    segm_symmetry_dict['LUpperArm'] = segm_symmetry_dict['RUpperArm']
+                else:
+                    segm_symmetry_dict['LUpperArm'] = (w, h)
+                    segm_symmetry_dict['RUpperArm'] = (w, h)
             else:
                 segm_symmetry_dict['LUpperArm'] = (w, h)
                 segm_symmetry_dict['RUpperArm'] = (w, h)
 
         elif segm_id == 'LLowerArm':
 
-            ref_w, ref_h = segm_symmetry_dict['RLowerArm']
-
-            if w < ref_w:
-                segm_symmetry_dict['LLowerArm'] = segm_symmetry_dict['RLowerArm']
+            if 'RLowerArm' in segm_symmetry_dict:
+                ref_w, ref_h = segm_symmetry_dict['RLowerArm']
+                if w < ref_w:
+                    segm_symmetry_dict['LLowerArm'] = segm_symmetry_dict['RLowerArm']
+                else:
+                    segm_symmetry_dict['LLowerArm'] = (w, h)
+                    segm_symmetry_dict['RLowerArm'] = (w, h)
             else:
                 segm_symmetry_dict['LLowerArm'] = (w, h)
                 segm_symmetry_dict['RLowerArm'] = (w, h)
@@ -770,20 +777,26 @@ def _symmetrize_rect_segm(segm_id, w, h, midpoint_x, midpoint_y, segm_symmetry_d
 
         elif segm_id == 'LThigh':
 
-            ref_w, ref_h = segm_symmetry_dict['RThigh']
-
-            if h < ref_h:
-                segm_symmetry_dict['LThigh'] = segm_symmetry_dict['RThigh']
+            if 'RThigh' in segm_symmetry_dict:
+                ref_w, ref_h = segm_symmetry_dict['RThigh']
+                if h < ref_h:
+                    segm_symmetry_dict['LThigh'] = segm_symmetry_dict['RThigh']
+                else:
+                    segm_symmetry_dict['LThigh'] = (w, h)
+                    segm_symmetry_dict['RThigh'] = (w, h)
             else:
                 segm_symmetry_dict['LThigh'] = (w, h)
                 segm_symmetry_dict['RThigh'] = (w, h)
 
         elif segm_id == 'LCalf':
 
-            ref_w, ref_h = segm_symmetry_dict['RCalf']
-
-            if h < ref_h:
-                segm_symmetry_dict['LCalf'] = segm_symmetry_dict['RCalf']
+            if 'RCalf' in segm_symmetry_dict:
+                ref_w, ref_h = segm_symmetry_dict['RCalf']
+                if h < ref_h:
+                    segm_symmetry_dict['LCalf'] = segm_symmetry_dict['RCalf']
+                else:
+                    segm_symmetry_dict['LCalf'] = (w, h)
+                    segm_symmetry_dict['RCalf'] = (w, h)
             else:
                 segm_symmetry_dict['LCalf'] = (w, h)
                 segm_symmetry_dict['RCalf'] = (w, h)
@@ -832,15 +845,20 @@ def _translate_and_scale_segm_to_rect(image, segm_id, segm_xy, keypoint, ref_poi
     min_x, min_y = np.min(segm_xy, axis=0).astype(int)
     max_x, max_y = np.max(segm_xy, axis=0).astype(int)
 
+    # debug
+    # img_bg = np.empty((max_y, max_x, 4), np.uint8)
+    # img_bg.fill(255)
+    # for x, y in segm_xy:
+    #     cv2.circle(img_bg, (int(x), int(y)), 1, COARSE_TO_COLOR[segm_id], -1)
+    # cv2.imshow(segm_id, img_bg)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+
     w = int(max_x - min_x)
     if segm_id == 'Torso':
         h = int(keypoint[0])
     else:
         h = int(max_y - min_y)
-
-    img_bg = np.empty((h, w, 4), np.uint8)
-    img_bg.fill(255)
-    img_bg[:, :] = COARSE_TO_COLOR[segm_id]
 
     if segm_id == 'Head' and h > 0:
         if is_man:
@@ -848,8 +866,7 @@ def _translate_and_scale_segm_to_rect(image, segm_id, segm_xy, keypoint, ref_poi
         else:
             scaler = 58 / h
 
-    img_bg = cv2.resize(img_bg, (int(w * scaler), int(h * scaler)), cv2.INTER_LINEAR)
-    h, w, _ = img_bg.shape
+    w, h = int( w * scaler), int(h * scaler)
 
     # midpoint [x, y] in the scaled coordinates of img_bg
     # distance between the center point and the left/upper boundaries
@@ -860,10 +877,27 @@ def _translate_and_scale_segm_to_rect(image, segm_id, segm_xy, keypoint, ref_poi
     else:
         midpoint_x, midpoint_y = ((np.array(keypoint)[0:2] - np.array([min_x, min_y])) * scaler).astype(int)
 
+    # discard the segment if the midpoint is not within it
+    if midpoint_x > w or midpoint_y > h:
+        if segm_id == 'Head':
+            return scaler, segm_symmetry_dict
+        else:
+            return segm_symmetry_dict
+
+    # debug
+    # cv2.circle(img_bg, (midpoint_x, midpoint_y), 5, (0, 255, 255), -1)
+    # cv2.imshow(segm_id, img_bg)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+
     if is_rect_symmetrical:
         _symmetrize_rect_segm(segm_id=segm_id, w=w, h=h, midpoint_x=midpoint_x, midpoint_y=midpoint_y, segm_symmetry_dict=segm_symmetry_dict)
 
     else:
+        img_bg = np.empty((h, w, 4), np.uint8)
+        img_bg.fill(255)
+        img_bg[:, :] = COARSE_TO_COLOR[segm_id]
+
         x, y = ref_point
         min_x = int(x - midpoint_x)
         max_x = int(x + w - midpoint_x)
@@ -946,15 +980,11 @@ def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man, is_rect_symmetric
     # assumption -> size of head for all people is the same!!!
     scaler = None
 
-    dispatcher = {
-        'segm_function_rect': _translate_and_scale_segm_to_rect,
-        'segm_function_convex': _translate_and_scale_segm_to_convex
-    }
-
+    dispatcher = {}
     if is_rect:
-        dispatcher['segm_function'] = dispatcher['segm_function_rect']
+        dispatcher['segm_function'] = _translate_and_scale_segm_to_rect
     else:
-        dispatcher['segm_function'] = dispatcher['segm_function_convex']
+        dispatcher['segm_function'] = _translate_and_scale_segm_to_convex
 
     # translate first, scale second!
     # head
@@ -1076,32 +1106,42 @@ def draw_segments_xy(segments_xy, is_vitruve, is_rect, is_man, is_rect_symmetric
     # draw the segments at last, after the symmetry of all segments has been checked
     if is_rect_symmetrical:
         # head
-        _draw_symmetrical_rect_segm(image=image, segm_id='Head', w_and_h=segm_symmetry_dict['Head'],
-                                    ref_point=norm_nose_xy)
+        if 'Head' in segm_symmetry_dict:
+            _draw_symmetrical_rect_segm(image=image, segm_id='Head', w_and_h=segm_symmetry_dict['Head'],
+                                        ref_point=norm_nose_xy)
 
         # torso
-        _draw_symmetrical_rect_segm(image=image, segm_id='Torso', w_and_h=segm_symmetry_dict['Torso'],
-                                    ref_point=norm_mid_torso_xy)
+        if 'Torso' in segm_symmetry_dict:
+            _draw_symmetrical_rect_segm(image=image, segm_id='Torso', w_and_h=segm_symmetry_dict['Torso'],
+                                        ref_point=norm_mid_torso_xy)
 
         # arms
-        _draw_symmetrical_rect_segm(image=image, segm_id='RUpperArm', w_and_h=segm_symmetry_dict['RUpperArm'],
-                                    ref_point=norm_mid_rupper_arm_xy)
-        _draw_symmetrical_rect_segm(image=image, segm_id='RLowerArm', w_and_h=segm_symmetry_dict['RLowerArm'],
-                                    ref_point=norm_mid_rlower_arm_xy)
-        _draw_symmetrical_rect_segm(image=image, segm_id='LUpperArm', w_and_h=segm_symmetry_dict['LUpperArm'],
-                                    ref_point=norm_mid_lupper_arm_xy)
-        _draw_symmetrical_rect_segm(image=image, segm_id='LLowerArm', w_and_h=segm_symmetry_dict['LLowerArm'],
-                                    ref_point=norm_mid_llower_arm_xy)
+        if 'RUpperArm' in segm_symmetry_dict:
+            _draw_symmetrical_rect_segm(image=image, segm_id='RUpperArm', w_and_h=segm_symmetry_dict['RUpperArm'],
+                                        ref_point=norm_mid_rupper_arm_xy)
+        if 'RLowerArm' in segm_symmetry_dict:
+            _draw_symmetrical_rect_segm(image=image, segm_id='RLowerArm', w_and_h=segm_symmetry_dict['RLowerArm'],
+                                        ref_point=norm_mid_rlower_arm_xy)
+        if 'LUpperArm' in segm_symmetry_dict:
+            _draw_symmetrical_rect_segm(image=image, segm_id='LUpperArm', w_and_h=segm_symmetry_dict['LUpperArm'],
+                                        ref_point=norm_mid_lupper_arm_xy)
+        if 'LLowerArm' in segm_symmetry_dict:
+            _draw_symmetrical_rect_segm(image=image, segm_id='LLowerArm', w_and_h=segm_symmetry_dict['LLowerArm'],
+                                        ref_point=norm_mid_llower_arm_xy)
 
         # legs
-        _draw_symmetrical_rect_segm(image=image, segm_id='RThigh', w_and_h=segm_symmetry_dict['RThigh'],
-                                    ref_point=norm_mid_rthigh_xy)
-        _draw_symmetrical_rect_segm(image=image, segm_id='RCalf', w_and_h=segm_symmetry_dict['RCalf'],
-                                    ref_point=norm_mid_rcalf_xy)
-        _draw_symmetrical_rect_segm(image=image, segm_id='LThigh', w_and_h=segm_symmetry_dict['LThigh'],
-                                    ref_point=norm_mid_lthigh_xy)
-        _draw_symmetrical_rect_segm(image=image, segm_id='LCalf', w_and_h=segm_symmetry_dict['LCalf'],
-                                    ref_point=norm_mid_lcalf_xy)
+        if 'RThigh' in segm_symmetry_dict:
+            _draw_symmetrical_rect_segm(image=image, segm_id='RThigh', w_and_h=segm_symmetry_dict['RThigh'],
+                                        ref_point=norm_mid_rthigh_xy)
+        if 'RCalf' in segm_symmetry_dict:
+            _draw_symmetrical_rect_segm(image=image, segm_id='RCalf', w_and_h=segm_symmetry_dict['RCalf'],
+                                        ref_point=norm_mid_rcalf_xy)
+        if 'LThigh' in segm_symmetry_dict:
+            _draw_symmetrical_rect_segm(image=image, segm_id='LThigh', w_and_h=segm_symmetry_dict['LThigh'],
+                                        ref_point=norm_mid_lthigh_xy)
+        if 'LCalf' in segm_symmetry_dict:
+            _draw_symmetrical_rect_segm(image=image, segm_id='LCalf', w_and_h=segm_symmetry_dict['LCalf'],
+                                        ref_point=norm_mid_lcalf_xy)
 
     # draw centers
     # head center
@@ -1284,16 +1324,20 @@ def _dilate_segm_to_rect(image, segm_id, segm_xy, bbox_xywh):
     min_x, min_y = np.min(rect_xy, axis=0).astype(int)
     max_x, max_y = np.max(rect_xy, axis=0).astype(int)
 
-    w = int(max_x - min_x)
-    h = int(max_y - min_y)
+    rect_xy = [[int(x - min_x), int(y - min_y)] for x, y in rect_xy]
+
+    a_min_x, a_min_y = np.min(rect_xy, axis=0).astype(int)
+    a_max_x, a_max_y = np.max(rect_xy, axis=0).astype(int)
+
+    w = int(a_max_x - a_min_x)
+    h = int(a_max_y - a_min_y)
 
     img_bg = np.empty((h, w, 4), np.uint8)
     img_bg.fill(255)
     img_bg[:, :, 3] = 0  # alpha channel = 0 -> transparent
 
     # fit in the coordinate of img_bg
-    contours = [[int(x - min_x), int(y - min_y)] for x, y in rect_xy]
-    contours = np.array(contours, np.int32)
+    contours = np.array(rect_xy, np.int32)
     # convex hull = rectangle
     cv2.fillConvexPoly(img_bg, cv2.convexHull(contours), color=COARSE_TO_COLOR[segm_id])
 
@@ -1302,7 +1346,11 @@ def _dilate_segm_to_rect(image, segm_id, segm_xy, bbox_xywh):
 
     # stack two images
     cond_bg = img_bg[:, :, 3] > 0  # condition for already-drawn segment pixels
-    image[int(min_y + bbox_y):int(max_y + bbox_y), int(min_x + bbox_x):int(max_x + bbox_x), :][cond_bg] = img_bg[cond_bg]
+    if min_y < 0:
+        min_y = 0
+    if min_x < 0:
+        min_x = 0
+    image[int(a_min_y + min_y + bbox_y):int(a_max_y + min_y + bbox_y), int(a_min_x + min_x + bbox_x):int(a_max_x + min_x + bbox_x), :][cond_bg] = img_bg[cond_bg]
 
 
 def dilate_segm(image, mask, segm, bbox_xywh, keypoints, infile, person_index, is_rect, show):
@@ -1529,9 +1577,9 @@ def generate_norm_segm(infile, score_cutoff, is_vitruve, is_rect, is_man, is_rec
             mask, segm = extract_segm(result_densepose=result_densepose)
 
             # dilate segments
-            dilate_segm(image=im_gray, mask=mask, segm=segm, bbox_xywh=box_xywh, keypoints=keypoints,
-                        infile=infile, person_index=person_index,
-                        is_rect=is_rect, show=show)
+            # dilate_segm(image=im_gray, mask=mask, segm=segm, bbox_xywh=box_xywh, keypoints=keypoints,
+            #             infile=infile, person_index=person_index,
+            #             is_rect=is_rect, show=show)
 
             # visualizer
             visualize_norm_segm(image_bg=im_gray, mask=mask, segm=segm, bbox_xywh=box_xywh, keypoints=keypoints,
@@ -1540,10 +1588,7 @@ def generate_norm_segm(infile, score_cutoff, is_vitruve, is_rect, is_man, is_rec
                                 show=show)
 
             # save the norm data for later rotation back to the original coordinates
-            iter_list = [iter.start() for iter in re.finditer(r"/", args.input)]
-            artist = args.input[iter_list[1] + 1:iter_list[2]]
-            painting_number = args.input[iter_list[2] + 1:args.input.rfind('.')]
-            index_name = '{}_{}_{}'.format(artist, painting_number, person_index)
+            index_name = generate_index_name(infile, person_index)
             df = pd.DataFrame(data=output_dict, index=[index_name])
             with open(os.path.join('output', 'norm_segm.csv'), 'a') as csv_file:
                 df.to_csv(csv_file, index=True, header=False)
@@ -1553,6 +1598,16 @@ def generate_norm_segm(infile, score_cutoff, is_vitruve, is_rect, is_man, is_rec
 
         else:
             continue
+
+
+def generate_index_name(infile, person_index):
+
+    iter_list = [iter.start() for iter in re.finditer(r"/", infile)]
+    artist = infile[iter_list[1] + 1:iter_list[2]]
+    painting_number = infile[iter_list[2] + 1:infile.rfind('.')]
+    index_name = '{}_{}_{}'.format(artist, painting_number, person_index)
+
+    return index_name
 
 
 def generate_norm_segm_outfile(infile, person_index, is_rect):

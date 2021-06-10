@@ -131,8 +131,14 @@ python hierarchical_clustering.py
 
 1. Execute the command below to generate the file 'norm_segm.csv' in the 'output' folder:
 ```bash
-python infer_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg --gender woman --output norm
+python visualize_rect_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg --gender woman
 ```
+
+<p float="left">
+    <img src="pix/90551_1_original.png" width="300"/>
+    <img src="pix/90551_1_bbox.png" width="300"/>
+    <img src="pix/90551_1_norm_rect.jpg" width="300"/>
+</p>
 
 2. Execute the command below to visualize the normalized segments on the original image:
 ```bash
@@ -140,7 +146,16 @@ python visualize_norm_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg
 ```
 
 <p float="left">
-    <img src="pix/norm_segm_90551.png" width="400"/>
+    <img src="pix/90551_1_rotated_back.png" width="300"/>
+</p>
+
+3. Execute the command below to generate the average contour for this artist:
+```bash
+ python visualize_avg_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg
+```
+
+<p float="left">
+    <img src="pix/90551_1_avg.png" width="400"/>
 </p>
 
 # References:

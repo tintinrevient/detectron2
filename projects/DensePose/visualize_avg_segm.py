@@ -298,12 +298,12 @@ if __name__ == '__main__':
     color = (0, 255, 0)
 
     # modern
-    # python visualize_norm_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg
-    # python visualize_norm_segm.py --input datasets/modern/Paul\ Gauguin/30963.jpg
+    # python visualize_avg_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg
+    # python visualize_avg_segm.py --input datasets/modern/Paul\ Gauguin/30963.jpg
 
     # classical
-    # python visualize_norm_segm.py --input datasets/classical/Michelangelo/12758.jpg
-    # python visualize_norm_segm.py --input datasets/classical/Artemisia\ Gentileschi/45093.jpg
+    # python visualize_avg_segm.py --input datasets/classical/Michelangelo/12758.jpg
+    # python visualize_avg_segm.py --input datasets/classical/Artemisia\ Gentileschi/45093.jpg
 
     parser = argparse.ArgumentParser(description='DensePose - Visualize the dilated and symmetrical segment')
     parser.add_argument('--input', help='Path to image file')

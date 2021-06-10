@@ -71,20 +71,14 @@ def _get_midpoints(infile, densepose_idx, keypoints):
 
     # upper limbs
     midpoints['RUpperArm'] = (keypoints['RShoulder'] + keypoints['RElbow']) / 2
-    # torso midpoint
     midpoints['RLowerArm'] = (keypoints['RElbow'] + keypoints['RWrist']) / 2
-    # torso midpoint
     midpoints['LUpperArm'] = (keypoints['LShoulder'] + keypoints['LElbow']) / 2
-    # torso midpoint
     midpoints['LLowerArm'] = (keypoints['LElbow'] + keypoints['LWrist']) / 2
 
     # lower limbs
     midpoints['RThigh'] = (keypoints['RHip'] + keypoints['RKnee']) / 2
-    # torso midpoint
     midpoints['RCalf'] = (keypoints['RKnee'] + keypoints['RAnkle']) / 2
-    # torso midpoint
     midpoints['LThigh'] = (keypoints['LHip'] + keypoints['LKnee']) / 2
-    # torso midpoint
     midpoints['LCalf'] = (keypoints['LKnee'] + keypoints['LAnkle']) / 2
 
     return midpoints
@@ -283,7 +277,7 @@ def generate_index_name(infile, openpose_idx):
 if __name__ == '__main__':
 
     # settings
-    thickness = 2
+    thickness = 3
     color = (0, 255, 0)
 
     # modern
