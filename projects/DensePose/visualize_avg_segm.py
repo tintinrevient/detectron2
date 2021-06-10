@@ -2,13 +2,44 @@ import os, cv2, re
 import numpy as np
 import argparse
 import pandas as pd
-from infer_segm import (
-    _draw_symmetrical_rect_segm, COARSE_TO_COLOR
+from visualize_rect_segm import (
+    COARSE_TO_COLOR
 )
 
 
 # the path to the data of norm_segm.csv
 fname_norm_segm = os.path.join('output', 'norm_segm.csv')
+
+
+# common settings
+# coordinates [x, y] coming from distribution_segm.extract_contour_on_vitruve()
+# nose_y 146
+# torso_y 281
+# rupper_arm_x 218
+# rlower_arm_x 149
+# lupper_arm_x 405
+# llower_arm_x 474
+# thigh_y 427
+# calf_y 544
+
+# [x, y]
+mid_x = 312
+arm_line_y = 217
+right_leg_x = 288
+left_leg_x = 336
+
+norm_nose_xy = [mid_x, 146]
+norm_mid_torso_xy = [mid_x, 281]
+
+norm_mid_rupper_arm_xy = [218, arm_line_y]
+norm_mid_rlower_arm_xy = [149, arm_line_y]
+norm_mid_lupper_arm_xy = [405, arm_line_y]
+norm_mid_llower_arm_xy = [474, arm_line_y]
+
+norm_mid_rthigh_xy = [right_leg_x, 427]
+norm_mid_lthigh_xy = [left_leg_x, 427]
+norm_mid_rcalf_xy = [right_leg_x, 544]
+norm_mid_lcalf_xy = [left_leg_x, 544]
 
 
 def _calc_avg_contour(df_norm_segm, artist):
@@ -73,48 +104,64 @@ def _calc_avg_contour(df_norm_segm, artist):
     return dict_avg_contour
 
 
+def _draw_symmetrical_rect_segm(image, segm_id, w_and_h, ref_point):
+
+    w, h = w_and_h
+
+    img_bg = np.empty((h, w, 4), np.uint8)
+    img_bg.fill(255)
+    img_bg[:, :] = COARSE_TO_COLOR[segm_id]
+
+    midpoint_x = w / 2
+    midpoint_y = h / 2
+
+    x, y = ref_point
+    min_x = int(x - midpoint_x)
+    max_x = int(x + midpoint_x)
+    min_y = int(y - midpoint_y)
+    max_y = int(y + midpoint_y)
+
+    added_image = cv2.addWeighted(image[min_y:max_y, min_x:max_x, :], 0.1, img_bg, 0.9, 0)
+    image[min_y:max_y, min_x:max_x, :] = added_image
+
+
+def _draw_norm_midpoints(image):
+
+    # head
+    cv2.circle(image, tuple(norm_nose_xy), 2, (255, 0, 255), -1)
+
+    # torso
+    cv2.circle(image, tuple(norm_mid_torso_xy), 2, (255, 0, 255), -1)
+
+    # upper limbs
+    cv2.circle(image, tuple(norm_mid_rupper_arm_xy), 2, (255, 0, 255), -1)
+    cv2.circle(image, tuple(norm_mid_rlower_arm_xy), 2, (255, 0, 255), -1)
+    cv2.circle(image, tuple(norm_mid_lupper_arm_xy), 2, (255, 0, 255), -1)
+    cv2.circle(image, tuple(norm_mid_llower_arm_xy), 2, (255, 0, 255), -1)
+
+    # lower limbs
+    cv2.circle(image, tuple(norm_mid_rthigh_xy), 2, (255, 0, 255), -1)
+    cv2.circle(image, tuple(norm_mid_rcalf_xy), 2, (255, 0, 255), -1)
+    cv2.circle(image, tuple(norm_mid_lthigh_xy), 2, (255, 0, 255), -1)
+    cv2.circle(image, tuple(norm_mid_lcalf_xy), 2, (255, 0, 255), -1)
+
+
 def _draw_norm_segm_on_avg_contour(dict_norm_segm, dict_avg_contour, infile):
 
     # normalized image = (624, 624, 4)
     image = np.empty((624, 624, 4), np.uint8)
     image.fill(255)  # => white (255, 255, 255, 255) = background with non-transparency
 
-    # common settings
-    # coordinates [x, y] coming from distribution_segm.extract_contour_on_vitruve()
-    # nose_y 146
-    # torso_y 281
-    # rupper_arm_x 218
-    # rlower_arm_x 149
-    # lupper_arm_x 405
-    # llower_arm_x 474
-    # thigh_y 427
-    # calf_y 544
-
-    # [x, y]
-    mid_x = 312
-    arm_line_y = 217
-    right_leg_x = 288
-    left_leg_x = 336
-
-    norm_nose_xy = [mid_x, 146]
-    norm_mid_torso_xy = [mid_x, 281]
-
-    norm_mid_rupper_arm_xy = [218, arm_line_y]
-    norm_mid_rlower_arm_xy = [149, arm_line_y]
-    norm_mid_lupper_arm_xy = [405, arm_line_y]
-    norm_mid_llower_arm_xy = [474, arm_line_y]
-
-    norm_mid_rthigh_xy = [right_leg_x, 427]
-    norm_mid_lthigh_xy = [left_leg_x, 427]
-    norm_mid_rcalf_xy = [right_leg_x, 544]
-    norm_mid_lcalf_xy = [left_leg_x, 544]
+    # one for the normalized segment superimposed on the average contour
+    image_norm = image.copy()
+    # one for the average contour
+    image_contour = image.copy()
 
     # head segment
-    _draw_symmetrical_rect_segm(image,
+    _draw_symmetrical_rect_segm(image_norm,
                                 segm_id='Head',
                                 w_and_h=(int(dict_norm_segm['Head_w']), int(dict_norm_segm['Head_h'])),
-                                ref_point=norm_nose_xy,
-                                update_dict=False)
+                                ref_point=norm_nose_xy)
 
     # head contour
     rect = (norm_nose_xy,
@@ -122,14 +169,14 @@ def _draw_norm_segm_on_avg_contour(dict_norm_segm, dict_avg_contour, infile):
             0)
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
-    cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image_norm, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image_contour, [box], 0, color=COARSE_TO_COLOR['Head'], thickness=thickness)
 
     # torso segment
-    _draw_symmetrical_rect_segm(image,
+    _draw_symmetrical_rect_segm(image_norm,
                                 segm_id='Torso',
                                 w_and_h=(int(dict_norm_segm['Torso_w']), int(dict_norm_segm['Torso_h'])),
-                                ref_point=norm_mid_torso_xy,
-                                update_dict=False)
+                                ref_point=norm_mid_torso_xy)
 
     # torso contour
     rect = (norm_mid_torso_xy,
@@ -137,32 +184,29 @@ def _draw_norm_segm_on_avg_contour(dict_norm_segm, dict_avg_contour, infile):
             0)
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
-    cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image_norm, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image_contour, [box], 0, color=COARSE_TO_COLOR['Torso'], thickness=thickness)
 
     # upper limbs - segments
-    _draw_symmetrical_rect_segm(image,
+    _draw_symmetrical_rect_segm(image_norm,
                                 segm_id='RUpperArm',
                                 w_and_h=(int(dict_norm_segm['RUpperArm_w']), int(dict_norm_segm['RUpperArm_h'])),
-                                ref_point=norm_mid_rupper_arm_xy,
-                                update_dict=False)
+                                ref_point=norm_mid_rupper_arm_xy)
 
-    _draw_symmetrical_rect_segm(image,
+    _draw_symmetrical_rect_segm(image_norm,
                                 segm_id='RLowerArm',
                                 w_and_h=(int(dict_norm_segm['RLowerArm_w']), int(dict_norm_segm['RLowerArm_h'])),
-                                ref_point=norm_mid_rlower_arm_xy,
-                                update_dict=False)
+                                ref_point=norm_mid_rlower_arm_xy)
 
-    _draw_symmetrical_rect_segm(image,
+    _draw_symmetrical_rect_segm(image_norm,
                                 segm_id='LUpperArm',
                                 w_and_h=(int(dict_norm_segm['LUpperArm_w']), int(dict_norm_segm['LUpperArm_h'])),
-                                ref_point=norm_mid_lupper_arm_xy,
-                                update_dict=False)
+                                ref_point=norm_mid_lupper_arm_xy)
 
-    _draw_symmetrical_rect_segm(image,
+    _draw_symmetrical_rect_segm(image_norm,
                                 segm_id='LLowerArm',
                                 w_and_h=(int(dict_norm_segm['LLowerArm_w']), int(dict_norm_segm['LLowerArm_h'])),
-                                ref_point=norm_mid_llower_arm_xy,
-                                update_dict=False)
+                                ref_point=norm_mid_llower_arm_xy)
 
     # upper limbs - contours
     rect = (norm_mid_rupper_arm_xy,
@@ -170,53 +214,53 @@ def _draw_norm_segm_on_avg_contour(dict_norm_segm, dict_avg_contour, infile):
             0)
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
-    cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image_norm, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image_contour, [box], 0, color=COARSE_TO_COLOR['RUpperArm'], thickness=thickness)
 
     rect = (norm_mid_rlower_arm_xy,
             (dict_avg_contour['RLowerArm_w'], dict_avg_contour['RLowerArm_h']),
             0)
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
-    cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image_norm, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image_contour, [box], 0, color=COARSE_TO_COLOR['RLowerArm'], thickness=thickness)
 
     rect = (norm_mid_lupper_arm_xy,
             (dict_avg_contour['LUpperArm_w'], dict_avg_contour['LUpperArm_h']),
             0)
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
-    cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image_norm, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image_contour, [box], 0, color=COARSE_TO_COLOR['LUpperArm'], thickness=thickness)
 
     rect = (norm_mid_llower_arm_xy,
             (dict_avg_contour['LLowerArm_w'], dict_avg_contour['LLowerArm_h']),
             0)
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
-    cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image_norm, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image_contour, [box], 0, color=COARSE_TO_COLOR['LLowerArm'], thickness=thickness)
 
     # lower limbs
-    _draw_symmetrical_rect_segm(image,
+    _draw_symmetrical_rect_segm(image_norm,
                                 segm_id='RThigh',
                                 w_and_h=(int(dict_norm_segm['RThigh_w']), int(dict_norm_segm['RThigh_h'])),
-                                ref_point=norm_mid_rthigh_xy,
-                                update_dict=False)
+                                ref_point=norm_mid_rthigh_xy)
 
-    _draw_symmetrical_rect_segm(image,
+    _draw_symmetrical_rect_segm(image_norm,
                                 segm_id='RCalf',
                                 w_and_h=(int(dict_norm_segm['RCalf_w']), int(dict_norm_segm['RCalf_h'])),
-                                ref_point=norm_mid_rcalf_xy,
-                                update_dict=False)
+                                ref_point=norm_mid_rcalf_xy)
 
-    _draw_symmetrical_rect_segm(image,
+    _draw_symmetrical_rect_segm(image_norm,
                                 segm_id='LThigh',
                                 w_and_h=(int(dict_norm_segm['LThigh_w']), int(dict_norm_segm['LThigh_h'])),
-                                ref_point=norm_mid_lthigh_xy,
-                                update_dict=False)
+                                ref_point=norm_mid_lthigh_xy)
 
-    _draw_symmetrical_rect_segm(image,
+    _draw_symmetrical_rect_segm(image_norm,
                                 segm_id='LCalf',
                                 w_and_h=(int(dict_norm_segm['LCalf_w']), int(dict_norm_segm['LCalf_h'])),
-                                ref_point=norm_mid_lcalf_xy,
-                                update_dict=False)
+                                ref_point=norm_mid_lcalf_xy)
 
     # lower limbs - contours
     rect = (norm_mid_rthigh_xy,
@@ -224,35 +268,44 @@ def _draw_norm_segm_on_avg_contour(dict_norm_segm, dict_avg_contour, infile):
             0)
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
-    cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image_norm, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image_contour, [box], 0, color=COARSE_TO_COLOR['RThigh'], thickness=thickness)
 
     rect = (norm_mid_rcalf_xy,
             (dict_avg_contour['RCalf_w'], dict_avg_contour['RCalf_h']),
             0)
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
-    cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image_norm, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image_contour, [box], 0, color=COARSE_TO_COLOR['RCalf'], thickness=thickness)
 
     rect = (norm_mid_lthigh_xy,
             (dict_avg_contour['LThigh_w'], dict_avg_contour['LThigh_h']),
             0)
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
-    cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image_norm, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image_contour, [box], 0, color=COARSE_TO_COLOR['LThigh'], thickness=thickness)
 
     rect = (norm_mid_lcalf_xy,
             (dict_avg_contour['LCalf_w'], dict_avg_contour['LCalf_h']),
             0)
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
-    cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image_norm, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image_contour, [box], 0, color=COARSE_TO_COLOR['LCalf'], thickness=thickness)
+
+    # draw the normalized midpoints
+    _draw_norm_midpoints(image_norm)
+    _draw_norm_midpoints(image_contour)
 
     # save and show the final image
-    outfile = generate_outfile(infile)
-    cv2.imwrite(outfile, image)
+    outfile_norm, outfile_contour = generate_outfile(infile)
+    cv2.imwrite(outfile_norm, image_norm)
+    cv2.imwrite(outfile_contour, image_contour)
 
-    image_window = 'image'
-    cv2.imshow(image_window, image)
+    image_window = 'norm on contour'
+    cv2.imshow(image_window, image_norm)
     cv2.setWindowProperty(image_window, cv2.WND_PROP_TOPMOST, 1)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
@@ -265,9 +318,10 @@ def generate_outfile(infile):
     artist = infile[iter_list[1] + 1:iter_list[2]]
     painting_number = infile[iter_list[2] + 1:infile.rfind('.')]
 
-    outfile = os.path.join('output', 'pix', '', category, artist, '{}_on_avg_contour.jpg'.format(painting_number))
+    outfile_norm = os.path.join('output', 'pix', '', category, artist, '{}_on_contour.jpg'.format(painting_number))
+    outfile_contour = os.path.join('output', 'pix', '', category, artist, 'average_contour.jpg')
 
-    return outfile
+    return outfile_norm, outfile_contour
 
 
 def visualize(infile, openpose_idx):

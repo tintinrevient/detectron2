@@ -10,6 +10,7 @@ from distribution_segm import (
     coco_folder, dp_coco,
     _is_valid, _translate_keypoints_to_bbox, get_img_ids_by_caption
 )
+import shutil
 
 # data type
 # keypoints = {key: (x, y, score)}

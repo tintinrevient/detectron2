@@ -3,30 +3,14 @@ setup_logger()
 
 import cv2, os, re
 import numpy as np
-from detectron2 import model_zoo
 from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
-from detectron2.utils.visualizer import Visualizer
-from detectron2.data import MetadataCatalog, DatasetCatalog
 from densepose.config import add_densepose_config
-from densepose.vis.base import CompoundVisualizer
-from densepose.vis.densepose_results import DensePoseResultsFineSegmentationVisualizer, DensePoseResultsVisualizer
-from densepose.vis.densepose_data_points import DensePoseDataCoarseSegmentationVisualizer
-from densepose.vis.bounding_box import ScoredBoundingBoxVisualizer
-from densepose.vis.extractor import CompoundExtractor, DensePoseResultExtractor, create_extractor
-from densepose.vis.extractor import extract_boxes_xywh_from_instances
-from densepose.converters import ToChartResultConverterWithConfidences
-from densepose.vis.base import MatrixVisualizer
+from densepose.vis.extractor import DensePoseResultExtractor
 import torch
-import collections
 import argparse
-from pathlib import Path
-import matplotlib.pyplot as plt
-from scipy import ndimage
-from scipy.ndimage.interpolation import rotate
 from scipy.spatial import ConvexHull
 import pandas as pd
-from skimage import morphology
 
 
 # files of config
@@ -619,6 +603,10 @@ def _draw_one_norm_segm(image, segm_id, norm_midpoint):
         half_h = temp_segm_dict[segm_id]['half_h']
         half_w = temp_segm_dict[segm_id]['half_w']
 
+    # if the segment does not exist on both left and right side, return!!!
+    if half_h < 1 or half_w < 1:
+        return
+
     norm_segm_dict[segm_id + '_w'] = int(half_w * 2)
     norm_segm_dict[segm_id + '_h'] = int(half_h * 2)
 
@@ -768,6 +756,32 @@ def _draw_norm_segm(segm_xy_dict, keypoints_dict, midpoints_dict, rotated_angles
     return image
 
 
+def _match(people_densepose, people_box_xywh, people_keypoints):
+
+    matched_densepose, matched_box_xywh, matched_keypoints = [], [], []
+
+    # Condition 1: mean_x and mean_y of the keypoints within bbox!!!
+    # Condition 1: range_x and range_y of the keypoints > 0.5 * bbox!!!
+    for keypoints in people_keypoints:
+        positive_score_keypoints = [[x, y, score] for x, y, score in keypoints if score != 0]
+        mean_x, mean_y, _ = np.mean(positive_score_keypoints, axis=0)
+        min_x, min_y, _ = np.min(positive_score_keypoints, axis=0)
+        max_x, max_y, _ = np.max(positive_score_keypoints, axis=0)
+        range_x = max_x - min_x
+        range_y = max_y - min_y
+
+        for idx, box_xywh in enumerate(people_box_xywh):
+            x, y, w, h = box_xywh
+            if mean_x > x and mean_x < (x + w) and mean_y > y and mean_y < (y + h) and range_x > 0.5 * w and range_y > 0.5 * h:
+
+                # updated matched data
+                matched_densepose.append(people_densepose[idx])
+                matched_box_xywh.append(people_box_xywh[idx])
+                matched_keypoints.append(keypoints)
+
+    return matched_densepose, matched_box_xywh, matched_keypoints
+
+
 def visualize(infile, score_cutoff, gender):
 
     global norm_segm_dict
@@ -805,12 +819,12 @@ def visualize(infile, score_cutoff, gender):
     print('size of keypoints:', len(people_keypoints))
     print('size of densepose:', len(people_densepose))
 
-
+    matched_densepose, matched_box_xywh, matched_keypoints = _match(people_densepose, people_box_xywh, people_keypoints)
 
     person_index = 0
-    for person_densepose, person_box_xywh, person_keypoints in zip(people_densepose,people_box_xywh, people_keypoints):
+    for person_densepose, person_box_xywh, person_keypoints in zip(matched_densepose, matched_box_xywh, matched_keypoints):
 
-        # condition: valid body box!
+        # condition: valid body box!!!
         if _is_valid(person_keypoints):
 
             # increase the number of valid people
@@ -822,7 +836,7 @@ def visualize(infile, score_cutoff, gender):
             # get segm_xy + keypoints
             segm_xy_dict, keypoints_dict = _get_dict_of_segm_and_keypoints(segm, person_keypoints, person_box_xywh)
 
-            # if the head segment is missing, continue to the next person!!!
+            # if the head does not exist, continue to the next person!!!
             if len(segm_xy_dict['Head']) < 1:
                 continue
 

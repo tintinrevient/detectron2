@@ -6,9 +6,9 @@ from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
 from densepose.config import add_densepose_config
 from densepose.vis.extractor import DensePoseResultExtractor
-from infer_segm import (
+from visualize_rect_segm import (
     openpose_keypoints_dir, JOINT_ID, COARSE_TO_COLOR,
-    extract_segm, _segm_xy, _segments_xy_centroid, _calc_angle, _rotate, _euclidian
+    _extract_segm, _segm_xy, _segm_xy_centroid, _calc_angle
 )
 
 
@@ -38,22 +38,14 @@ def _get_head_segm_centroid(infile, densepose_idx):
     extractor = DensePoseResultExtractor()
     results_densepose, boxes_xywh = extractor(confident_detections)
 
-    # bbox
-    x, y, w, h = boxes_xywh[densepose_idx]
-
     # extract the segment
-    mask, segm = extract_segm(result_densepose=results_densepose[densepose_idx])
+    mask, segm = _extract_segm(result_densepose=results_densepose[densepose_idx])
 
     # get x and y of the head segment
-    head_xy = _segm_xy(segm=segm, segm_id_list=[14])
+    head_xy = _segm_xy(segm=segm, segm_id=14, box_xywh=boxes_xywh[densepose_idx])
 
     # get the centroid of the head segment
-    head_centroid = _segments_xy_centroid(head_xy)
-    head_centroid_x, head_centroid_y = head_centroid
-
-    # translate the centroid from bbox to the original image coordinate
-    head_centroid_x = head_centroid_x + x
-    head_centroid_y = head_centroid_y + y
+    head_centroid_x, head_centroid_y = _segm_xy_centroid(head_xy)
 
     return head_centroid_x, head_centroid_y
 
@@ -147,7 +139,7 @@ def _draw_norm_segm(image, midpoints, rotated_angles, dict_norm_segm):
             rotated_angles['Head'])
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
-    cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image, [box], 0, color=COARSE_TO_COLOR['Head'], thickness=thickness)
 
     # torso
     rect = ((midpoints['Torso'][0], midpoints['Torso'][1]),
@@ -155,7 +147,7 @@ def _draw_norm_segm(image, midpoints, rotated_angles, dict_norm_segm):
             rotated_angles['Torso'])
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
-    cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image, [box], 0, color=COARSE_TO_COLOR['Torso'], thickness=thickness)
 
     # upper limbs
     rect = ((midpoints['RUpperArm'][0], midpoints['RUpperArm'][1]),
@@ -163,28 +155,28 @@ def _draw_norm_segm(image, midpoints, rotated_angles, dict_norm_segm):
             rotated_angles['RUpperArm'])
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
-    cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image, [box], 0, color=COARSE_TO_COLOR['RUpperArm'], thickness=thickness)
 
     rect = ((midpoints['RLowerArm'][0], midpoints['RLowerArm'][1]),
             (dict_norm_segm['RLowerArm_w'] * scaler, dict_norm_segm['RLowerArm_h'] * scaler),
             rotated_angles['RLowerArm'])
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
-    cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image, [box], 0, color=COARSE_TO_COLOR['RLowerArm'], thickness=thickness)
 
     rect = ((midpoints['LUpperArm'][0], midpoints['LUpperArm'][1]),
             (dict_norm_segm['LUpperArm_w'] * scaler, dict_norm_segm['LUpperArm_h'] * scaler),
             rotated_angles['LUpperArm'])
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
-    cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image, [box], 0, color=COARSE_TO_COLOR['LUpperArm'], thickness=thickness)
 
     rect = ((midpoints['LLowerArm'][0], midpoints['LLowerArm'][1]),
             (dict_norm_segm['LLowerArm_w'] * scaler, dict_norm_segm['LLowerArm_h'] * scaler),
             rotated_angles['LLowerArm'])
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
-    cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image, [box], 0, color=COARSE_TO_COLOR['LLowerArm'], thickness=thickness)
 
     # lower limbs
     rect = ((midpoints['RThigh'][0], midpoints['RThigh'][1]),
@@ -192,28 +184,28 @@ def _draw_norm_segm(image, midpoints, rotated_angles, dict_norm_segm):
             rotated_angles['RThigh'])
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
-    cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image, [box], 0, color=COARSE_TO_COLOR['RThigh'], thickness=thickness)
 
     rect = ((midpoints['RCalf'][0], midpoints['RCalf'][1]),
             (dict_norm_segm['RCalf_w'] * scaler, dict_norm_segm['RCalf_h'] * scaler),
             rotated_angles['RCalf'])
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
-    cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image, [box], 0, color=COARSE_TO_COLOR['RCalf'], thickness=thickness)
 
     rect = ((midpoints['LThigh'][0], midpoints['LThigh'][1]),
             (dict_norm_segm['LThigh_w'] * scaler, dict_norm_segm['LThigh_h'] * scaler),
             rotated_angles['LThigh'])
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
-    cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image, [box], 0, color=COARSE_TO_COLOR['LThigh'], thickness=thickness)
 
     rect = ((midpoints['LCalf'][0], midpoints['LCalf'][1]),
             (dict_norm_segm['LCalf_w'] * scaler, dict_norm_segm['LCalf_h'] * scaler),
             rotated_angles['LCalf'])
     box = cv2.boxPoints(rect)  # cv2.boxPoints(rect) for OpenCV 3.x
     box = np.int0(box)
-    cv2.drawContours(image, [box], 0, color=color, thickness=thickness)
+    cv2.drawContours(image, [box], 0, color=COARSE_TO_COLOR['LCalf'], thickness=thickness)
 
 
 def visualize(infile, openpose_idx, densepose_idx):
@@ -277,8 +269,7 @@ def generate_index_name(infile, openpose_idx):
 if __name__ == '__main__':
 
     # settings
-    thickness = 3
-    color = (0, 255, 0)
+    thickness = 5
 
     # modern
     # python visualize_norm_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg
@@ -294,4 +285,6 @@ if __name__ == '__main__':
 
     # for a single person in one image: openpose_idx=1, densepose_idx=1
     # for multiple people in one image: openpose_idx might or might not be equal to densepose_idx
+    # Hint 1: the head will match if openpose_idx is matched with densepose_idx!
+    # Hint 2: Paul Delvaux_69696_3 -> 3 = openpose_idx!
     visualize(infile=args.input, openpose_idx=1, densepose_idx=1)
