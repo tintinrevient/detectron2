@@ -64,14 +64,14 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
 ## SMPL
 
 <p float="left">
-    <img src="./pix/smpl.png" width=900 />
+    <img src="./pix/smpl.png" width=700 />
 </p>
 
 ## UV texture
 
 <p float="left">
-    <img src="pix/uv_texture_front.png" alt="densepose_front" width="250"/>
-    <img src="pix/uv_texture_back.png" alt="densepose_back" width="290"/>
+    <img src="pix/uv_texture_front.png" alt="densepose_front" width="200"/>
+    <img src="pix/uv_texture_back.png" alt="densepose_back" width="240"/>
 </p>
 
 ## DensePose segment extractor
@@ -82,13 +82,7 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
 ## DensePose normalization
 
 <p float="left">
-    <img src="pix/densepose-norm.png" width="700"/>
-</p>
-
-## DensePose on Vitruve
-
-<p float="left">
-    <img src="pix/densepose-vitruve.png" width="500"/>
+    <img src="pix/densepose-norm.png" width="600"/>
 </p>
 
 ## Keypoints in elliptical standard distribution
@@ -104,8 +98,8 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
 ```
 
 <p float="left">
-    <img src="pix/pose_std0.5_man.png" width="400"/>
-    <img src="pix/pose_std1_man.png" width="400"/>
+    <img src="pix/pose_std0.5_man.png" width="300"/>
+    <img src="pix/pose_std0.5_modern.png" width="300"/>
 </p>
 
 3. Execute the command below to do a Chi-squared or ANOVA test, to verify whether COCO man and woman, natural and artistic poses, etc., are significantly different:
@@ -135,9 +129,8 @@ python visualize_rect_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg --
 ```
 
 <p float="left">
-    <img src="pix/90551_1_original.png" width="300"/>
-    <img src="pix/90551_1_bbox.png" width="300"/>
-    <img src="pix/90551_1_norm_rect.jpg" width="300"/>
+    <img src="pix/90551_original_and_bbox.png" width="400"/>
+    <img src="pix/90551_norm_rect.jpg" width="300"/>
 </p>
 
 2. Execute the command below to visualize the normalized segments on the original image:
@@ -146,7 +139,7 @@ python visualize_norm_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg
 ```
 
 <p float="left">
-    <img src="pix/90551_1_rotated_back.png" width="300"/>
+    <img src="pix/rotated_back.png" width="700"/>
 </p>
 
 3. Execute the command below to generate the average contour for this artist:
@@ -155,7 +148,8 @@ python visualize_norm_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg
 ```
 
 <p float="left">
-    <img src="pix/90551_1_avg.png" width="400"/>
+    <img src="pix/average_contour.png" width="300"/>
+    <img src="pix/90551_on_contour.png" width="300"/>
 </p>
 
 # References:
