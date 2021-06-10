@@ -52,7 +52,6 @@ COARSE_ID = [
     'Head'
 ]
 
-# implicit cmap = cv2.COLORMAP_PARULA <= hard-coded!!! ugh!!!
 # BGRA -> alpha channel: 0 = transparent, 255 = non-transparent
 COARSE_TO_COLOR = {
     'Background': [255, 255, 255, 255],
@@ -806,6 +805,8 @@ def visualize(infile, score_cutoff, gender):
     print('size of keypoints:', len(people_keypoints))
     print('size of densepose:', len(people_densepose))
 
+
+
     person_index = 0
     for person_densepose, person_box_xywh, person_keypoints in zip(people_densepose,people_box_xywh, people_keypoints):
 
@@ -820,6 +821,10 @@ def visualize(infile, score_cutoff, gender):
 
             # get segm_xy + keypoints
             segm_xy_dict, keypoints_dict = _get_dict_of_segm_and_keypoints(segm, person_keypoints, person_box_xywh)
+
+            # if the head segment is missing, continue to the next person!!!
+            if len(segm_xy_dict['Head']) < 1:
+                continue
 
             # get midpoints
             midpoints_dict = _get_dict_of_midpoints(segm_xy_dict, keypoints_dict)
