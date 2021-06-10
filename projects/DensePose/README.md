@@ -61,19 +61,6 @@ If you use DensePose, please refer to the BibTeX entries
 for [chart-based models](doc/DENSEPOSE_IUV.md#References)
 and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
 
-## SMPL
-
-<p float="left">
-    <img src="./pix/smpl.png" width=700 />
-</p>
-
-## UV texture
-
-<p float="left">
-    <img src="pix/uv_texture_front.png" alt="densepose_front" width="200"/>
-    <img src="pix/uv_texture_back.png" alt="densepose_back" width="240"/>
-</p>
-
 ## DensePose segment extractor
 * https://raw.githubusercontent.com/tintinrevient/detectron2/main/projects/DensePose/densepose/vis/base.py
 * https://raw.githubusercontent.com/tintinrevient/detectron2/main/projects/DensePose/densepose/vis/extractor.py
@@ -98,7 +85,7 @@ and for [continuous surface embeddings](doc/DENSEPOSE_CSE.md#References).
 ```
 
 <p float="left">
-    <img src="pix/pose_std0.5_man.png" width="300"/>
+    <img src="pix/pose_std0.5_woman.png" width="300"/>
     <img src="pix/pose_std0.5_modern.png" width="300"/>
 </p>
 
