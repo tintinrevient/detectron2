@@ -148,8 +148,8 @@ python visualize_norm_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg
 ```
 
 <p float="left">
-    <img src="pix/average_contour.png" width="300"/>
-    <img src="pix/90551_on_contour.png" width="300"/>
+    <img src="pix/average_contour.jpg" width="300"/>
+    <img src="pix/90551_on_contour.jpg" width="300"/>
 </p>
 
 # References:
