@@ -9,6 +9,8 @@ from visualize_rect_segm import (
 
 # the path to the data of norm_segm.csv
 fname_norm_segm = os.path.join('output', 'norm_segm.csv')
+fname_norm_segm_coco_man = os.path.join('output', 'norm_segm_coco_man.csv')
+fname_norm_segm_coco_woman = os.path.join('output', 'norm_segm_coco_woman.csv')
 
 
 # common settings
@@ -42,66 +44,60 @@ norm_mid_rcalf_xy = [right_leg_x, 544]
 norm_mid_lcalf_xy = [left_leg_x, 544]
 
 
-def _calc_avg_contour(df_norm_segm, artist):
+def _calc_avg_contour(df_norm):
 
-    dict_avg_contour = {
-        'Head_w': 0,
-        'Head_h': 0,
-        'Torso_w': 0,
-        'Torso_h': 0,
-        'RUpperArm_w': 0,
-        'RUpperArm_h': 0,
-        'RLowerArm_w': 0,
-        'RLowerArm_h': 0,
-        'LUpperArm_w': 0,
-        'LUpperArm_h': 0,
-        'LLowerArm_w': 0,
-        'LLowerArm_h': 0,
-        'RThigh_w': 0,
-        'RThigh_h': 0,
-        'RCalf_w': 0,
-        'RCalf_h': 0,
-        'LThigh_w': 0,
-        'LThigh_h': 0,
-        'LCalf_w': 0,
-        'LCalf_h': 0
-    }
+    dict_avg_contour = {}
 
-    # step 1: calculate the sum of width and height
-    dict_norm_segm_by_artist = df_norm_segm[df_norm_segm.index.str.contains(artist)]
-    for index, row in dict_norm_segm_by_artist.iterrows():
+    # head
+    dict_avg_contour['Head_w'] = df_norm['Head_w'].mean()
+    dict_avg_contour['Head_h'] = df_norm['Head_h'].mean()
 
-        dict_avg_contour['Head_w'] += row['Head_w']
-        dict_avg_contour['Head_h'] += row['Head_h']
-        dict_avg_contour['Torso_w'] += row['Torso_w']
-        dict_avg_contour['Torso_h'] += row['Torso_h']
+    # torso
+    dict_avg_contour['Torso_w'] = df_norm['Torso_w'].mean()
+    dict_avg_contour['Torso_h'] = df_norm['Torso_h'].mean()
 
-        dict_avg_contour['RUpperArm_w'] += row['RUpperArm_w']
-        dict_avg_contour['RUpperArm_h'] += row['RUpperArm_h']
-        dict_avg_contour['RLowerArm_w'] += row['RLowerArm_w']
-        dict_avg_contour['RLowerArm_h'] += row['RLowerArm_h']
+    # upper limbs
+    dict_avg_contour['RUpperArm_w'] = df_norm['RUpperArm_w'].mean()
+    dict_avg_contour['RUpperArm_h'] = df_norm['RUpperArm_h'].mean()
+    dict_avg_contour['RLowerArm_w'] = df_norm['RLowerArm_w'].mean()
+    dict_avg_contour['RLowerArm_h'] = df_norm['RLowerArm_h'].mean()
+    dict_avg_contour['LUpperArm_w'] = df_norm['LUpperArm_w'].mean()
+    dict_avg_contour['LUpperArm_h'] = df_norm['LUpperArm_h'].mean()
+    dict_avg_contour['LLowerArm_w'] = df_norm['LLowerArm_w'].mean()
+    dict_avg_contour['LLowerArm_h'] = df_norm['LLowerArm_h'].mean()
 
-        dict_avg_contour['LUpperArm_w'] += row['LUpperArm_w']
-        dict_avg_contour['LUpperArm_h'] += row['LUpperArm_h']
-        dict_avg_contour['LLowerArm_w'] += row['LLowerArm_w']
-        dict_avg_contour['LLowerArm_h'] += row['LLowerArm_h']
-
-        dict_avg_contour['RThigh_w'] += row['RThigh_w']
-        dict_avg_contour['RThigh_h'] += row['RThigh_h']
-        dict_avg_contour['RCalf_w'] += row['RCalf_w']
-        dict_avg_contour['RCalf_h'] += row['RCalf_h']
-
-        dict_avg_contour['LThigh_w'] += row['LThigh_w']
-        dict_avg_contour['LThigh_h'] += row['LThigh_h']
-        dict_avg_contour['LCalf_w'] += row['LCalf_w']
-        dict_avg_contour['LCalf_h'] += row['LCalf_h']
-
-    # step 2: calculate the average width and height
-    count = len(dict_norm_segm_by_artist.index)
-    for key, value in dict_avg_contour.items():
-        dict_avg_contour[key] = int(value / count)
+    # lower limbs
+    dict_avg_contour['RThigh_w'] = df_norm['RThigh_w'].mean()
+    dict_avg_contour['RThigh_h'] = df_norm['RThigh_h'].mean()
+    dict_avg_contour['RCalf_w'] = df_norm['RCalf_w'].mean()
+    dict_avg_contour['RCalf_h'] = df_norm['RCalf_h'].mean()
+    dict_avg_contour['LThigh_w'] = df_norm['LThigh_w'].mean()
+    dict_avg_contour['LThigh_h'] = df_norm['LThigh_h'].mean()
+    dict_avg_contour['LCalf_w'] = df_norm['LCalf_w'].mean()
+    dict_avg_contour['LCalf_h'] = df_norm['LCalf_h'].mean()
 
     return dict_avg_contour
+
+
+def _calc_area_of_segment(dict_avg_contour):
+
+    # head
+    print('Head:', dict_avg_contour['Head_w'] * dict_avg_contour['Head_h'])
+
+    # torso
+    print('Torso:', dict_avg_contour['Torso_w'] * dict_avg_contour['Torso_h'])
+
+    # upper limbs
+    print('RUpperArm:', dict_avg_contour['RUpperArm_w'] * dict_avg_contour['RUpperArm_h'])
+    print('RLowerArm:', dict_avg_contour['RLowerArm_w'] * dict_avg_contour['RLowerArm_h'])
+    print('LUpperArm:', dict_avg_contour['LUpperArm_w'] * dict_avg_contour['LUpperArm_h'])
+    print('LLowerArm:', dict_avg_contour['LLowerArm_w'] * dict_avg_contour['LLowerArm_h'])
+
+    # lower limbs
+    print('RThigh:', dict_avg_contour['RThigh_w'] * dict_avg_contour['RThigh_h'])
+    print('RCalf:', dict_avg_contour['RCalf_w'] * dict_avg_contour['RCalf_h'])
+    print('LThigh:', dict_avg_contour['LThigh_w'] * dict_avg_contour['LThigh_h'])
+    print('LCalf:', dict_avg_contour['LCalf_w'] * dict_avg_contour['LCalf_h'])
 
 
 def _draw_symmetrical_rect_segm(image, segm_id, w_and_h, ref_point):
@@ -146,7 +142,7 @@ def _draw_norm_midpoints(image):
     cv2.circle(image, tuple(norm_mid_lcalf_xy), 2, (255, 0, 255), -1)
 
 
-def _draw_norm_segm_on_avg_contour(dict_norm_segm, dict_avg_contour, infile):
+def _draw_norm_segm_on_avg_contour(dict_norm_segm, dict_avg_contour, infile, contour):
 
     # normalized image = (624, 624, 4)
     image = np.empty((624, 624, 4), np.uint8)
@@ -300,9 +296,12 @@ def _draw_norm_segm_on_avg_contour(dict_norm_segm, dict_avg_contour, infile):
     _draw_norm_midpoints(image_contour)
 
     # save and show the final image
-    outfile_norm, outfile_contour = generate_outfile(infile)
+    outfile_norm, outfile_contour = generate_outfile(infile, contour)
     cv2.imwrite(outfile_norm, image_norm)
     cv2.imwrite(outfile_contour, image_contour)
+
+    print('save norm to:', outfile_norm)
+    print('save contour to:', outfile_contour)
 
     image_window = 'norm on contour'
     cv2.imshow(image_window, image_norm)
@@ -311,20 +310,20 @@ def _draw_norm_segm_on_avg_contour(dict_norm_segm, dict_avg_contour, infile):
     cv2.destroyAllWindows()
 
 
-def generate_outfile(infile):
+def generate_outfile(infile, contour):
 
     iter_list = [iter.start() for iter in re.finditer(r"/", infile)]
     category = infile[iter_list[0] + 1:iter_list[1]]
     artist = infile[iter_list[1] + 1:iter_list[2]]
     painting_number = infile[iter_list[2] + 1:infile.rfind('.')]
 
-    outfile_norm = os.path.join('output', 'pix', '', category, artist, '{}_on_contour.jpg'.format(painting_number))
-    outfile_contour = os.path.join('output', 'pix', '', category, artist, 'average_contour.jpg')
+    outfile_norm = os.path.join('output', 'pix', '', category, artist, '{}_on_{}_contour.jpg'.format(painting_number, contour))
+    outfile_contour = os.path.join('output', 'pix', '', category, artist, 'average_contour_{}.jpg'.format(contour))
 
     return outfile_norm, outfile_contour
 
 
-def visualize(infile, openpose_idx):
+def visualize(infile, openpose_idx, contour):
 
     # step 1: load the data of norm_segm
     df_norm_segm = pd.read_csv(fname_norm_segm, index_col=0)
@@ -337,12 +336,22 @@ def visualize(infile, openpose_idx):
     dict_norm_segm = df_norm_segm.loc[index_name]
     print(dict_norm_segm)
 
+    if contour == 'artist':
+        df_norm = df_norm_segm[df_norm_segm.index.str.contains(artist)]
+    elif contour == 'man':
+        df_norm = pd.read_csv(fname_norm_segm_coco_man, index_col=0)
+    elif contour == 'woman':
+        df_norm = pd.read_csv(fname_norm_segm_coco_woman, index_col=0)
+
     # step 2: calculate the average contour for this artist
-    dict_avg_contour = _calc_avg_contour(df_norm_segm, artist)
+    dict_avg_contour = _calc_avg_contour(df_norm)
     print(dict_avg_contour)
 
-    # step 3: draw the norm_segm over the average contour
-    _draw_norm_segm_on_avg_contour(dict_norm_segm, dict_avg_contour, infile)
+    # step 3: print the area of each segment
+    _calc_area_of_segment(dict_avg_contour)
+
+    # step 4: draw the norm_segm over the average contour
+    _draw_norm_segm_on_avg_contour(dict_norm_segm, dict_avg_contour, infile, contour)
 
 
 if __name__ == '__main__':
@@ -352,15 +361,18 @@ if __name__ == '__main__':
     color = (0, 255, 0)
 
     # modern
-    # python visualize_avg_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg
-    # python visualize_avg_segm.py --input datasets/modern/Paul\ Gauguin/30963.jpg
+    # python visualize_avg_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg --contour artist
+    # python visualize_avg_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg --contour woman
+    # python visualize_avg_segm.py --input datasets/modern/Paul\ Gauguin/30963.jpg --contour artist
 
     # classical
-    # python visualize_avg_segm.py --input datasets/classical/Michelangelo/12758.jpg
-    # python visualize_avg_segm.py --input datasets/classical/Artemisia\ Gentileschi/45093.jpg
+    # python visualize_avg_segm.py --input datasets/classical/Michelangelo/12758.jpg --contour artist
+    # python visualize_avg_segm.py --input datasets/classical/Michelangelo/12758.jpg --contour man
+    # python visualize_avg_segm.py --input datasets/classical/Artemisia\ Gentileschi/45093.jpg --contour artist
 
     parser = argparse.ArgumentParser(description='DensePose - Visualize the dilated and symmetrical segment')
     parser.add_argument('--input', help='Path to image file')
+    parser.add_argument('--contour', help='Contour can be artist, COCO man, COCO woman')
     args = parser.parse_args()
 
-    visualize(infile=args.input, openpose_idx=1)
+    visualize(infile=args.input, openpose_idx=1, contour=args.contour)
