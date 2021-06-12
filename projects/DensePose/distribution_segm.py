@@ -6,6 +6,7 @@ import glob
 import pycocotools.mask as mask_util
 import infer_segm
 from densepose.structures import DensePoseDataRelative
+from visualize_rect_segm import COARSE_TO_COLOR
 
 
 # dataset setting
@@ -441,14 +442,14 @@ def extract_contour_on_vitruve():
 
     # drawing setting
     radius_keypoint = 3
-    radius_midpoint = 3
-    thickness_contour = 1
+    radius_midpoint = 2
+    thickness_contour = 2
 
-    color_keypoint = (0, 255, 0)
-    color_midpoint = (255, 0, 255)
-    color_contour = (255, 0, 255)
+    color_keypoint = (0, 255, 0, 255)
+    color_midpoint = (255, 0, 255, 255)
+    color_contour = (255, 0, 255, 255)
 
-    color_line = (0, 255, 255)
+    color_line = (0, 255, 255, 255)
 
     # height of the man
     height = 500
@@ -534,10 +535,19 @@ def extract_contour_on_vitruve():
     cv2.circle(image, (lsho_x, arm_line_y), radius=radius_keypoint, color=color_keypoint, thickness=-1)
     print('lsho_x:', lsho_x)
 
+    # show the guideline on the Vitruvian Man for double check!
+    cv2.imshow('vitruve original', image)
+    cv2.waitKey()
+    cv2.destroyAllWindows()
+
     # draw midpoints and contour on a white image
-    # white image
-    image = np.empty((624, 624, 4), np.uint8)
-    image.fill(255)
+    # option 1: white image
+    # image = np.empty((624, 624, 4), np.uint8)
+    # image.fill(255)
+
+    # option 2: vitruvian man
+    image = cv2.imread(fname_vitruve_norm, cv2.IMREAD_GRAYSCALE)
+    image = np.tile(image[:, :, np.newaxis], [1, 1, 3])
 
     # midpoints
     # centroid of head = midpoint of vertical line and [horizontal line]
@@ -579,25 +589,32 @@ def extract_contour_on_vitruve():
     print('thigh_y', mid_thigh_y)
     print('calf_y', mid_calf_y)
 
+    # length of segment
+    print('length of lower arm:', abs(rwrist_x - relb_x), abs(lwrist_x - lelb_x))
+    print('length of upper arm:', abs(relb_x - rsho_x), abs(lelb_x - lsho_x))
+    print('length of torso:', abs(neck_y - midhip_y))
+    print('length of lower leg:', abs(ankle_y - knee_y))
+    print('length of upper leg:', abs(knee_y - midhip_y))
+
     # contour of head
     head_radius = int(chin_y - nose_y)
     print('head_radius:', head_radius)
-    cv2.circle(image, (mid_x, nose_y), radius=head_radius, color=color_contour, thickness=thickness_contour)
+    cv2.rectangle(image, (int(mid_x-head_radius), int(nose_y-head_radius)), (int(mid_x+head_radius), int(nose_y+head_radius)), color=COARSE_TO_COLOR['Head'], thickness=thickness_contour)
 
     # contour of torso
-    cv2.rectangle(image, (int(rsho_x + torso_margin_y), neck_y), (int(lsho_x - torso_margin_y), midhip_y), color=color_contour, thickness=thickness_contour)
+    cv2.rectangle(image, (int(rsho_x + torso_margin_y), neck_y), (int(lsho_x - torso_margin_y), midhip_y), color=COARSE_TO_COLOR['Torso'], thickness=thickness_contour)
 
     # contour of arms
-    cv2.rectangle(image, (rwrist_x, arm_line_upper_y), (relb_x, arm_line_lower_y), color=color_contour, thickness=thickness_contour)
-    cv2.rectangle(image, (relb_x, arm_line_upper_y), (rsho_x, arm_line_lower_y), color=color_contour, thickness=thickness_contour)
-    cv2.rectangle(image, (lwrist_x, arm_line_upper_y), (lelb_x, arm_line_lower_y), color=color_contour, thickness=thickness_contour)
-    cv2.rectangle(image, (lelb_x, arm_line_upper_y), (lsho_x, arm_line_lower_y), color=color_contour, thickness=thickness_contour)
+    cv2.rectangle(image, (rwrist_x, arm_line_upper_y), (relb_x, arm_line_lower_y), color=COARSE_TO_COLOR['RLowerArm'], thickness=thickness_contour)
+    cv2.rectangle(image, (relb_x, arm_line_upper_y), (rsho_x, arm_line_lower_y), color=COARSE_TO_COLOR['RUpperArm'], thickness=thickness_contour)
+    cv2.rectangle(image, (lwrist_x, arm_line_upper_y), (lelb_x, arm_line_lower_y), color=COARSE_TO_COLOR['LLowerArm'], thickness=thickness_contour)
+    cv2.rectangle(image, (lelb_x, arm_line_upper_y), (lsho_x, arm_line_lower_y), color=COARSE_TO_COLOR['LUpperArm'], thickness=thickness_contour)
 
     # contour of legs
-    cv2.rectangle(image, (right_leg_line_left_x, midhip_y), (right_leg_line_right_x, knee_y), color=color_contour, thickness=thickness_contour)
-    cv2.rectangle(image, (right_leg_line_left_x, knee_y), (right_leg_line_right_x, ankle_y), color=color_contour, thickness=thickness_contour)
-    cv2.rectangle(image, (left_leg_line_left_x, midhip_y), (left_leg_line_right_x, knee_y), color=color_contour, thickness=thickness_contour)
-    cv2.rectangle(image, (left_leg_line_left_x, knee_y), (left_leg_line_right_x, ankle_y), color=color_contour, thickness=thickness_contour)
+    cv2.rectangle(image, (right_leg_line_left_x, midhip_y), (right_leg_line_right_x, knee_y), color=COARSE_TO_COLOR['RThigh'], thickness=thickness_contour)
+    cv2.rectangle(image, (right_leg_line_left_x, knee_y), (right_leg_line_right_x, ankle_y), color=COARSE_TO_COLOR['RCalf'], thickness=thickness_contour)
+    cv2.rectangle(image, (left_leg_line_left_x, midhip_y), (left_leg_line_right_x, knee_y), color=COARSE_TO_COLOR['LThigh'], thickness=thickness_contour)
+    cv2.rectangle(image, (left_leg_line_left_x, knee_y), (left_leg_line_right_x, ankle_y), color=COARSE_TO_COLOR['LCalf'], thickness=thickness_contour)
 
     winname = 'vitruve'
     cv2.imshow(winname, image)
