@@ -169,7 +169,7 @@ python distribution_segm.py
 ```
 
 <p float="left">
-    <img src="pix/vitruve_contour.png.jpg" width="300"/>
+    <img src="pix/vitruve_contour.png" width="300"/>
 </p>
 
 # References:
