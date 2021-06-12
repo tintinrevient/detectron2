@@ -152,7 +152,7 @@ python visualize_norm_segm_coco.py
 ```
 
 <p float="left">
-    <img src="pix/coco-norm.png.png" width="700"/>
+    <img src="pix/coco-norm.png" width="700"/>
 </p>
 
 3. Execute the command below to generate the average contour for men and women:
