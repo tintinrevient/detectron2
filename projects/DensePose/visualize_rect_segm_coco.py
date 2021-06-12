@@ -8,7 +8,7 @@ from densepose.structures import DensePoseDataRelative
 from visualize_rect_segm import (
     _get_dict_of_midpoints, _get_dict_of_rotated_angles, _segm_xy,
     _remove_outlier, _get_min_bounding_rect, _euclidian, _rotate,
-    COARSE_TO_COLOR, COARSE_ID, JOINT_ID
+    COARSE_TO_COLOR, COARSE_ID
 )
 
 
@@ -20,6 +20,13 @@ dp_coco = COCO(os.path.join(coco_folder, 'annotations', 'densepose_train2014.jso
 
 # caption annotation
 caption_coco = COCO(os.path.join(coco_folder, 'annotations', 'captions_train2014.json'))
+
+# DensePose JOINT_ID
+JOINT_ID = [
+    'Nose', 'LEye', 'REye', 'LEar', 'REar',
+    'LShoulder', 'RShoulder', 'LElbow', 'RElbow', 'LWrist', 'RWrist',
+    'LHip', 'RHip', 'LKnee', 'RKnee', 'LAnkle', 'RAnkle'
+]
 
 
 def filter_by_caption(yes_word_list, no_word_list):
@@ -168,14 +175,14 @@ def _get_dict_of_segm_and_keypoints(segm, keypoints, box_xywh):
 def _is_valid(keypoints_dict):
 
     # check the scores for each main keypoint, which MUST exist!
-    # main_keypoints = BODY BOX
-    main_keypoints = ['Nose', 'Neck', 'RShoulder', 'LShoulder', 'RHip', 'LHip', 'MidHip']
+    main_keypoints = ['Nose', 'Neck', 'RShoulder', 'LShoulder', 'RHip', 'LHip', 'MidHip',
+                      'RElbow', 'LElbow', 'RWrist', 'LWrist', 'RKnee', 'LKnee', 'RAnkle', 'LAnkle']
 
     # filter the main keypoints by score > 0
     filtered_keypoints = [key for key, value in keypoints_dict.items() if key in main_keypoints and value[2] > 0]
-    print('Number of valid keypoints (must be equal to 7):', len(filtered_keypoints))
+    print('Number of valid keypoints (must be equal to 15):', len(filtered_keypoints))
 
-    if len(filtered_keypoints) != 7:
+    if len(filtered_keypoints) != 15:
         return False
     else:
         return True
@@ -614,8 +621,8 @@ def _generate_index_name(image_id, person_index):
 if __name__ == '__main__':
 
     # common setting
-    dp_img_category = 'woman' # man or woman
-    show = False
+    dp_img_category = 'man' # man or woman
+    show = True
 
     # images within a range
     dp_img_range = slice(0, None)

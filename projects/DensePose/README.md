@@ -108,7 +108,7 @@ python util_angle_of_keypoints.py
 python hierarchical_clustering.py
 ```
 
-## Put normalized dilated symmetrical segments back to the original pose
+## OpenPose (artistic poses) - Put normalized dilated symmetrical segments back to the original pose
 
 1. Execute the command below to generate the file 'norm_segm.csv' in the 'output' folder:
 ```bash
@@ -131,13 +131,35 @@ python visualize_norm_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg
 
 3. Execute the command below to generate the average contour for this artist:
 ```bash
- python visualize_avg_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg
+python visualize_avg_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg --contour artist
 ```
 
 <p float="left">
     <img src="pix/average_contour.jpg" width="300"/>
     <img src="pix/90551_on_contour.jpg" width="300"/>
 </p>
+
+## DensePose (COCO natural poses) - Put normalized dilated symmetrical segments back to the original pose
+
+1. Execute the command below to generate the file 'norm_segm_coco_man.csv' and 'norm_segm_coco_woman.csv'' in the 'output' folder:
+```bash
+ python visualize_rect_segm_coco.py
+```
+
+2. Execute the command below to visualize the normalized segments on the original image:
+```bash
+python visualize_norm_segm_coco.py
+```
+
+<p float="left">
+    <img src="pix/coco-norm.png.png" width="700"/>
+</p>
+
+3. Execute the command below to generate the average contour for men and women:
+```bash
+python visualize_avg_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg --contour woman
+python visualize_avg_segm.py --input datasets/classical/Michelangelo/12758.jpg --contour man
+```
 
 # References:
 * https://www.kaggle.com/changethetuneman/densepose
