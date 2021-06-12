@@ -161,6 +161,17 @@ python visualize_avg_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg --c
 python visualize_avg_segm.py --input datasets/classical/Michelangelo/12758.jpg --contour man
 ```
 
+## The contour of the Vitruvian Man
+
+1. Execute the command below with the function 'extract_contour_on_vitruve()' to generate the contour of the Vitruvian Man:
+```bash
+python distribution_segm.py
+```
+
+<p float="left">
+    <img src="pix/vitruve_contour.png.jpg" width="300"/>
+</p>
+
 # References:
 * https://www.kaggle.com/changethetuneman/densepose
 * https://github.com/facebookresearch/DensePose/
