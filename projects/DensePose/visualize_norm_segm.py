@@ -257,9 +257,14 @@ def visualize(infile, openpose_idx, densepose_idx):
 
 def generate_index_name(infile, openpose_idx):
 
+    # each artist
     iter_list = [iter.start() for iter in re.finditer(r"/", infile)]
     artist = infile[iter_list[1] + 1:iter_list[2]]
     painting_number = infile[iter_list[2] + 1:infile.rfind('.')]
+
+    # impressionism
+    # artist = 'Impressionism'
+    # painting_number = int(infile[infile.rfind('/')+1:infile.rfind('.')])
 
     index_name = '{}_{}_{}'.format(artist, painting_number, openpose_idx)
 
