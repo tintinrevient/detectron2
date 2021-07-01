@@ -172,6 +172,74 @@ python distribution_segm.py
     <img src="pix/vitruve_contour.png" width="300"/>
 </p>
 
+## The variant of Impressionism
+
+1. Comment and uncomment the code below in generate_index_name() of visualize_norm_segm.py:
+```python
+# each artist
+# iter_list = [iter.start() for iter in re.finditer(r"/", infile)]
+# artist = infile[iter_list[1] + 1:iter_list[2]]
+# painting_number = infile[iter_list[2] + 1:infile.rfind('.')]
+
+# impressionism
+artist = 'Impressionism'
+painting_number = int(infile[infile.rfind('/')+1:infile.rfind('.')])
+```
+
+2. Execute the command below to visualize the normalized segments on the original image:
+
+```bash
+python visualize_norm_segm.py --input datasets/impressionism/50921.jpg
+```
+
+3. Comment and uncomment the code below in visualize() of visualize_avg_segm.py:
+```python
+# each artist
+# iter_list = [iter.start() for iter in re.finditer(r"/", infile)]
+# artist = args.input[iter_list[1] + 1:iter_list[2]]
+# painting_number = args.input[iter_list[2] + 1:args.input.rfind('.')]
+# index_name = '{}_{}_{}'.format(artist, painting_number, openpose_idx)
+
+# impressionism
+artist = 'Impressionism'
+painting_number = int(infile[infile.rfind('/')+1:infile.rfind('.')])
+index_name = '{}_{}_{}'.format(artist, painting_number, openpose_idx)
+```
+
+4. Comment and uncomment the code below in generate_outfile() of visualize_avg_segm.py:
+```python
+# each artist
+# iter_list = [iter.start() for iter in re.finditer(r"/", infile)]
+# category = infile[iter_list[0] + 1:iter_list[1]]
+# artist = infile[iter_list[1] + 1:iter_list[2]]
+# painting_number = infile[iter_list[2] + 1:infile.rfind('.')]
+#
+# outfile_norm = os.path.join('output', 'pix', category, artist, '{}_on_{}_contour.jpg'.format(painting_number, contour))
+# outfile_contour = os.path.join('output', 'pix', category, artist, 'average_contour_{}.jpg'.format(contour))
+
+# impressionism
+artist = 'Impressionism'
+painting_number = int(infile[infile.rfind('/')+1:infile.rfind('.')])
+```
+
+5. Execute the command below to generate the average contour for Impressionism:
+```bash
+python visualize_avg_segm.py --input datasets/impressionism/19881.jpg --contour artist
+```
+
+## Superimpose the average contour on the pose
+
+1. Write down the average contour data in 'contour.csv' in the 'output' folder (scaler = 0);
+
+2. Execute the command below to superimpose the average contour on one pose:
+```bash
+python visualize_contour_on_pose_coco.py
+```
+
+```bash
+python visualize_contour_on_pose.py --input datasets/impressionism/19881.jpg
+```
+
 # References:
 * https://www.kaggle.com/changethetuneman/densepose
 * https://github.com/facebookresearch/DensePose/
