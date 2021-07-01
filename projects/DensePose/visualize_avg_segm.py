@@ -76,6 +76,14 @@ def _calc_avg_contour(df_norm):
     dict_avg_contour['LCalf_w'] = df_norm['LCalf_w'].mean()
     dict_avg_contour['LCalf_h'] = df_norm['LCalf_h'].mean()
 
+    # length of segment
+    print('length of head:', dict_avg_contour['Head_h'])
+    print('length of lower arm:', dict_avg_contour['RLowerArm_w'], dict_avg_contour['LLowerArm_w'])
+    print('length of upper arm:', dict_avg_contour['RUpperArm_w'], dict_avg_contour['LUpperArm_w'])
+    print('length of torso:', dict_avg_contour['Torso_h'])
+    print('length of lower leg:', dict_avg_contour['RCalf_h'], dict_avg_contour['LCalf_h'])
+    print('length of upper leg:', dict_avg_contour['RThigh_h'], dict_avg_contour['LThigh_h'])
+
     return dict_avg_contour
 
 
@@ -312,13 +320,21 @@ def _draw_norm_segm_on_avg_contour(dict_norm_segm, dict_avg_contour, infile, con
 
 def generate_outfile(infile, contour):
 
+    # each artist
     iter_list = [iter.start() for iter in re.finditer(r"/", infile)]
     category = infile[iter_list[0] + 1:iter_list[1]]
     artist = infile[iter_list[1] + 1:iter_list[2]]
     painting_number = infile[iter_list[2] + 1:infile.rfind('.')]
 
-    outfile_norm = os.path.join('output', 'pix', '', category, artist, '{}_on_{}_contour.jpg'.format(painting_number, contour))
-    outfile_contour = os.path.join('output', 'pix', '', category, artist, 'average_contour_{}.jpg'.format(contour))
+    outfile_norm = os.path.join('output', 'pix', category, artist, '{}_on_{}_contour.jpg'.format(painting_number, contour))
+    outfile_contour = os.path.join('output', 'pix', category, artist, 'average_contour_{}.jpg'.format(contour))
+
+    # impressionism
+    # artist = 'Impressionism'
+    # painting_number = int(infile[infile.rfind('/')+1:infile.rfind('.')])
+    #
+    # outfile_norm = os.path.join('output', 'pix', artist, '{}_on_{}_contour.jpg'.format(painting_number, contour))
+    # outfile_contour = os.path.join('output', 'pix', artist, 'average_contour_{}.jpg'.format(contour))
 
     return outfile_norm, outfile_contour
 
@@ -328,10 +344,16 @@ def visualize(infile, openpose_idx, contour):
     # step 1: load the data of norm_segm
     df_norm_segm = pd.read_csv(fname_norm_segm, index_col=0)
 
+    # each artist
     iter_list = [iter.start() for iter in re.finditer(r"/", infile)]
     artist = args.input[iter_list[1] + 1:iter_list[2]]
     painting_number = args.input[iter_list[2] + 1:args.input.rfind('.')]
     index_name = '{}_{}_{}'.format(artist, painting_number, openpose_idx)
+
+    # impressionism
+    # artist = 'Impressionism'
+    # painting_number = int(infile[infile.rfind('/')+1:infile.rfind('.')])
+    # index_name = '{}_{}_{}'.format(artist, painting_number, openpose_idx)
 
     dict_norm_segm = df_norm_segm.loc[index_name]
     print(dict_norm_segm)
@@ -358,7 +380,7 @@ if __name__ == '__main__':
 
     # settings
     thickness = 2
-    color = (0, 255, 0)
+    color = (255, 0, 255)
 
     # modern
     # python visualize_avg_segm.py --input datasets/modern/Paul\ Delvaux/90551.jpg --contour artist
