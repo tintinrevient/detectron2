@@ -22,11 +22,22 @@ nude = [48.32, 38.20, 73.18, 29.74, 36.35, 74.72, 24.11, 159.03, 26.97, 88.36, 1
 # head, torso
 # right upper arm, right lower arm, left upper arm, left lower arm
 # right thigh, right calf, left thigh, left calf
-area_man = [3440.70, 8288.41, 1543.52, 1055.39, 1553.64, 1064.50, 3596.74, 2288.46, 4075.06, 2149.28]
-area_woman = [2934.88, 6292.58, 1291.78, 870.47,  1327.10, 885.06, 2972.91, 1944.02, 3442.63, 1869.62]
+area_coco_man = [3164.60, 8491.30, 1540.29, 1060.48, 1549.22, 1089.24, 3923.21, 2294.13, 3980.68, 2229.65]
+area_coco_woman = [2539.04, 6133.00, 1254.51, 838.16, 1301.31, 854.25, 3303.78, 1871.76, 3361.22, 1884.94]
 
 area_michelangelo = [2951.20, 10734.24, 2416.96, 1632.0, 2416.96, 1632.0, 4300.0, 3302.4, 4300.0, 3302.4]
 area_paul_delvaux = [2490.13, 9751.77, 1289.60, 1012.30, 1289.60, 1012.30, 3550.49, 1890.99, 3550.49, 1890.99]
+
+area_coco_surf_woman = [2668, 5684, 1416, 883, 1416, 883, 3560, 1728, 3560, 1728]
+area_impressionism_nude_woman = [2552, 7854, 1334, 1134, 1334, 1134, 3280, 1980, 3280, 1980]
+
+# length of limbs
+# head, torso
+# upper arm, lower arm
+# upper leg, lower leg
+length_vitruve = [62, 167, 62.5, 75, 125, 108]
+length_michelangelo = [62, 128.4, 72.8, 68.0, 86.0, 86.0]
+length_coco_man = [62, 113.1, 62.7, 51.0, 89.4, 79.5]
 
 # Chi-squared test
 # obs = np.array([man, women]).T
@@ -38,5 +49,6 @@ area_paul_delvaux = [2490.13, 9751.77, 1289.60, 1012.30, 1289.60, 1012.30, 3550.
 # print(result)
 
 # ANOVA
-result = stats.f_oneway(area_woman, area_paul_delvaux)
+result = stats.f_oneway(area_coco_surf_woman, area_impressionism_nude_woman)
+# result = stats.f_oneway(length_vitruve, length_michelangelo)
 print(result)

@@ -258,3 +258,4 @@ python visualize_contour_on_pose.py --input datasets/impressionism/19881.jpg
 * https://gis.stackexchange.com/questions/238117/standard-deviational-ellipse-with-open-source-python-gdal-ogr-etc
 * https://pro.arcgis.com/en/pro-app/latest/tool-reference/spatial-statistics/h-how-directional-distribution-standard-deviationa.htm
 * https://matplotlib.org/stable/gallery/color/named_colors.html
+* https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.f_oneway.html
