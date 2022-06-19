@@ -39,6 +39,12 @@ of the method, links to trained models along with their performance evaluation i
 
 See [ Getting Started ](doc/GETTING_STARTED.md)
 
+# Installation
+
+To install `detectron2`, reference https://detectron2.readthedocs.io/en/latest/tutorials/install.html
+
+To activate my local environment - `conda activate py3.8`
+
 # Model Zoo
 
 Please check the dedicated pages
